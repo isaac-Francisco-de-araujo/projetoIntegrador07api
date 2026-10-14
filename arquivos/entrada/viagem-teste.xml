@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Formato fictício exclusivo para testes do RotaBrasil. Não representa o XML real da empresa. -->
+<viagem>
+    <numero>TESTE-001</numero>
+    <data>2026-10-07</data>
+    <cliente>
+        <nome>Cliente Teste RotaBrasil</nome>
+        <cnpj>00000000000000</cnpj>
+        <email>teste@rotabrasil.local</email>
+        <telefone>0000000000</telefone>
+    </cliente>
+</viagem>
