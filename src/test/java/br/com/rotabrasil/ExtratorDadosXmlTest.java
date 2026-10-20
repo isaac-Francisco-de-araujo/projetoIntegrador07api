@@ -1,97 +1,131 @@
-
 package br.com.rotabrasil;
-
 import br.com.rotabrasil.exception.ArquivoInvalidoException;
-import br.com.rotabrasil.service.ExtratorDadosXml;
-
+import br.com.rotabrasil.service.*;
 import org.junit.jupiter.api.Test;
-
 import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
+import static org.assertj.core.api.Assertions.*;
 class ExtratorDadosXmlTest {
-
-    private final ExtratorDadosXml extrator = new ExtratorDadosXml();
+ private DadosViagemXml extrair(String xml) {
+  return new ExtratorDadosXml().extrair(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
+ }
 
     @Test
-    void extraiDadosDoCteReal400() throws Exception {
+    void extraiIdentidadeSemInventarEmail() {
+  var d = extrair(CteFixture.xml());
+  assertThat(d.chaveAcesso()).isEqualTo(CteFixture.CHAVE);
+  assertThat(d.numero()).isEqualTo("66213");
+  assertThat(d.data().toString()).isEqualTo("2025-04-04");
+  assertThat(d.nomeCliente()).isEqualTo("Cliente Teste");
+  assertThat(d.cnpjCliente()).isEqualTo("00000000000000");
+  assertThat(d.emailCliente()).isNull();
+  assertThat(d.telefoneCliente()).isEqualTo("1100000000");
+  assertThat(d.status()).isEqualTo("Autorizado");
+ }
 
-        Path path = Paths.get(
-            "src/test/resources/35250467391920000159570020000662131001747710-cte.xml"
-        );
+    @Test
+    void aceitaSemPrefixoESemContatos() {
+  var d = extrair(CteFixture.xml().replace("Id=\"CTe", "Id=\"")
+    .replace("<fone>1100000000</fone>", "<fone> </fone>")
+    .replace("</xNome>", "</xNome><email> </email>"));
+  assertThat(d.emailCliente()).isNull(); assertThat(d.telefoneCliente()).isNull();
+ }
 
-        try (InputStream is = Files.newInputStream(path)) {
+    @Test
+    void aceitaCteSemProtocolo() {
+  String xml = CteFixture.xml();
+  String cte = xml.substring(xml.indexOf("<CTe>"), xml.indexOf("</CTe>")+6)
+    .replace("<CTe>", "<CTe xmlns=\"http://www.portalfiscal.inf.br/cte\">");
+  assertThat(extrair(cte).status()).isEqualTo("Sem protocolo de autorização");
+ }
 
-            var dados = extrator.extrair(is);
-
-            assertThat(dados.numero()).isEqualTo("66213");
-            assertThat(dados.data().toString()).isEqualTo("2025-04-04");
-            assertThat(dados.status())
-                .isEqualTo("Autorizado o uso do CT-e.");
-
-            assertThat(dados.nomeCliente())
-                .isEqualTo("DSM PRODUTOS NUTRICIONAIS BRASIL S.A.");
-
-            assertThat(dados.cnpjCliente())
-                .isEqualTo("56992951001978");
-
-            assertThat(dados.emailCliente())
-                .isEqualTo("nao@informado.com");
-
-            assertThat(dados.telefoneCliente())
-                .isEqualTo("1147188467");
-        }
+    @Test
+    void chaveCurta() {
+        assertThatThrownBy(() -> extrair(CteFixture.xml().replace("CTe" + CteFixture.CHAVE, "CTe123"))).isInstanceOf(ArquivoInvalidoException.class).hasMessageContaining("44");
     }
 
     @Test
-    void rejeitaXmlInvalido() {
-
-        String xml = "<invalid></invalid>";
-
-        assertThatThrownBy(() ->
-            extrator.extrair(
-                new ByteArrayInputStream(
-                    xml.getBytes(StandardCharsets.UTF_8)
-                )
-            )
-        ).isInstanceOf(ArquivoInvalidoException.class);
+    void digitoInvalido() {
+        assertThatThrownBy(() -> extrair(CteFixture.xml().replace("CTe" + CteFixture.CHAVE, "CTe" + CteFixture.CHAVE.substring(0, 43) + "8"))).isInstanceOf(ArquivoInvalidoException.class).hasMessageContaining("verificador");
     }
 
     @Test
-    void naoPresumeAutorizacaoQuandoNaoExisteProtocolo() {
+    void modeloInvalido() {
+        assertThatThrownBy(() -> extrair(CteFixture.xml().replace("CTe" + CteFixture.CHAVE, "CTe" + CteFixture.CHAVE.substring(0, 20) + "55" + CteFixture.CHAVE.substring(22)))).isInstanceOf(ArquivoInvalidoException.class).hasMessageContaining("modelo");
+    }
 
-        String xml = """
-            <?xml version="1.0" encoding="UTF-8"?>
-            <CTe xmlns="http://www.portalfiscal.inf.br/cte">
-                <infCte>
-                    <ide>
-                        <nCT>12345</nCT>
-                        <dhEmi>2025-04-04T10:00:00-03:00</dhEmi>
-                    </ide>
-                    <dest>
-                        <CNPJ>12345678000199</CNPJ>
-                        <xNome>CLIENTE DE TESTE</xNome>
-                    </dest>
-                </infCte>
-            </CTe>
-            """;
+    @Test
+    void protocoloDivergente() {
+        assertThatThrownBy(() -> extrair(CteFixture.xml().replace("<chCTe>" + CteFixture.CHAVE, "<chCTe>" + "1".repeat(44)))).isInstanceOf(ArquivoInvalidoException.class).hasMessageContaining("protocolo");
+    }
 
-        var dados = extrator.extrair(
-            new ByteArrayInputStream(
-                xml.getBytes(StandardCharsets.UTF_8)
-            )
-        );
+    @Test
+    void versaoInvalida() {
+        assertThatThrownBy(() -> extrair(CteFixture.xml().replace("4.00", "3.00"))).isInstanceOf(ArquivoInvalidoException.class).hasMessageContaining("Vers\u00e3o");
+    }
 
-        assertThat(dados.numero()).isEqualTo("12345");
+    @Test
+    void numeroDivergente() {
+        assertThatThrownBy(() -> extrair(CteFixture.xml().replace("<nCT>66213</nCT>", "<nCT>66214</nCT>"))).isInstanceOf(ArquivoInvalidoException.class).hasMessageContaining("nCT");
+    }
 
-        assertThat(dados.status())
-            .isEqualTo("Sem protocolo de autorização");
+    @Test
+    void duplicado() {
+        assertThatThrownBy(() -> extrair(CteFixture.xml().replace("</nCT>", "</nCT><nCT>66213</nCT>"))).isInstanceOf(ArquivoInvalidoException.class).hasMessageContaining("duplicado");
+    }
+
+    @Test
+    void ausentedest() {
+        assertThatThrownBy(() -> extrair(CteFixture.xml().replaceAll("(?s)<dest>.*?</dest>", ""))).isInstanceOf(ArquivoInvalidoException.class).hasMessageContaining("dest");
+    }
+
+    @Test
+    void ausenteide() {
+        assertThatThrownBy(() -> extrair(CteFixture.xml().replaceAll("(?s)<ide>.*?</ide>", ""))).isInstanceOf(ArquivoInvalidoException.class).hasMessageContaining("ide");
+    }
+
+    @Test
+    void ausentenCT() {
+        assertThatThrownBy(() -> extrair(CteFixture.xml().replaceAll("(?s)<nCT>.*?</nCT>", ""))).isInstanceOf(ArquivoInvalidoException.class).hasMessageContaining("nCT");
+    }
+
+    @Test
+    void ausentedhEmi() {
+        assertThatThrownBy(() -> extrair(CteFixture.xml().replaceAll("(?s)<dhEmi>.*?</dhEmi>", ""))).isInstanceOf(ArquivoInvalidoException.class).hasMessageContaining("dhEmi");
+    }
+
+    @Test
+    void ausentexNome() {
+        assertThatThrownBy(() -> extrair(CteFixture.xml().replaceAll("(?s)<xNome>.*?</xNome>", ""))).isInstanceOf(ArquivoInvalidoException.class).hasMessageContaining("xNome");
+    }
+
+    @Test
+    void ausenteCNPJ() {
+        assertThatThrownBy(() -> extrair(CteFixture.xml().replaceAll("(?s)<CNPJ>.*?</CNPJ>", ""))).isInstanceOf(ArquivoInvalidoException.class).hasMessageContaining("CNPJ");
+    }
+
+    @Test
+    void ausentechCTe() {
+        assertThatThrownBy(() -> extrair(CteFixture.xml().replaceAll("(?s)<chCTe>.*?</chCTe>", ""))).isInstanceOf(ArquivoInvalidoException.class).hasMessageContaining("chCTe");
+    }
+
+    @Test
+    void ausenteinfProt() {
+        assertThatThrownBy(() -> extrair(CteFixture.xml().replaceAll("(?s)<infProt>.*?</infProt>", ""))).isInstanceOf(ArquivoInvalidoException.class).hasMessageContaining("infProt");
+    }
+
+    @Test
+    void malformado() {
+        assertThatThrownBy(() -> extrair("<CTe")).isInstanceOf(ArquivoInvalidoException.class);
+    }
+
+    @Test
+    void estrutura() {
+        assertThatThrownBy(() -> extrair("<invalid/>")).isInstanceOf(ArquivoInvalidoException.class);
+    }
+
+    @Test
+    void xxe() {
+        assertThatThrownBy(() -> extrair("<!DOCTYPE CTe [<!ENTITY xxe SYSTEM \"file:///nonexistent\">]><CTe>&xxe;</CTe>")).isInstanceOf(ArquivoInvalidoException.class);
     }
 }

@@ -17,6 +17,7 @@ public class Viagem {
     private String status;
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "cliente_id", nullable = false) private Cliente cliente;
-    @OneToMany(mappedBy = "viagem", cascade = CascadeType.ALL, orphanRemoval = true)
+    // Documentos pertencem ao acervo: editar a coleção não autoriza exclusão.
+    @OneToMany(mappedBy = "viagem", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @Builder.Default private List<Documento> documentos = new ArrayList<>();
 }

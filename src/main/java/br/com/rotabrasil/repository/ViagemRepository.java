@@ -6,5 +6,7 @@ import java.util.*;
 
 public interface ViagemRepository extends JpaRepository<Viagem, Long> {
     Optional<Viagem> findByNumero(String numero);
+    List<Viagem> findAllByNumero(String numero);
     List<Viagem> findByClienteId(Long clienteId);
+    boolean existsByClienteId(Long clienteId);
 }

@@ -6,6 +6,9 @@ import java.util.List;
 
 public interface EnvioRepository extends JpaRepository<Envio, Long> {
     List<Envio> findByViagemId(Long viagemId);
+    List<Envio> findByViagemIdOrderByIdAsc(Long viagemId);
     List<Envio> findByClienteId(Long clienteId);
     List<Envio> findByStatus(Envio.Status status);
+    boolean existsByClienteId(Long clienteId);
+    boolean existsByViagemId(Long viagemId);
 }

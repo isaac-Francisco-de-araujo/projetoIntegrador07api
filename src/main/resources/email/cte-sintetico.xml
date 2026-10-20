@@ -1,0 +1,12 @@
+<!-- Documento sintético para teste de e-mail. Sem autorização ou valor fiscal. -->
+<cteProc xmlns="http://www.portalfiscal.inf.br/cte" versao="4.00">
+  <CTe><infCte Id="CTe35250412345678000195570020000662131001747719" versao="4.00">
+    <ide><nCT>66213</nCT><dhEmi>2025-04-04T08:14:10-03:00</dhEmi></ide>
+    <dest><CNPJ>00000000000000</CNPJ><xNome>CLIENTE SINTETICO - SEM VALOR FISCAL</xNome>
+      <enderDest><fone>1100000000</fone></enderDest>
+    </dest>
+  </infCte></CTe>
+  <protCTe versao="4.00"><infProt><chCTe>35250412345678000195570020000662131001747719</chCTe>
+    <cStat>100</cStat><xMotivo>Autorizado</xMotivo>
+  </infProt></protCTe>
+</cteProc>

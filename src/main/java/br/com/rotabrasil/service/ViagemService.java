@@ -1,6 +1,7 @@
 package br.com.rotabrasil.service;
 
 import br.com.rotabrasil.exception.RecursoNaoEncontradoException;
+import br.com.rotabrasil.exception.ConflitoDocumentoException;
 import br.com.rotabrasil.model.Viagem;
 import br.com.rotabrasil.repository.ViagemRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,7 +16,18 @@ public class ViagemService {
     public Viagem buscarViagem(Long id) { return repository.findById(id).orElseThrow(() -> new RecursoNaoEncontradoException("Viagem não encontrada: " + id)); }
     public List<Viagem> listarViagens() { return repository.findAll(); }
     public Viagem buscarOuCadastrar(String numero, LocalDate data, String status, br.com.rotabrasil.model.Cliente cliente) {
-        return repository.findByNumero(numero).orElseGet(() -> cadastrarViagem(Viagem.builder().numero(numero).data(data).status(status).cliente(cliente).build()));
+        var existentes = repository.findAllByNumero(numero);
+        if (existentes.size() > 1) {
+            throw new ConflitoDocumentoException("Número de viagem ambíguo; reconciliação necessária");
+        }
+        if (!existentes.isEmpty()) {
+            Viagem existente = existentes.getFirst();
+            if (existente.getCliente() == null || !java.util.Objects.equals(existente.getCliente().getCnpj(), cliente.getCnpj())) {
+                throw new ConflitoDocumentoException("Número de viagem já associado a outro cliente; decisão operacional necessária");
+            }
+            return existente;
+        }
+        return cadastrarViagem(Viagem.builder().numero(numero).data(data).status(status).cliente(cliente).build());
     }
     public Viagem atualizarViagem(Long id, Viagem dados) { Viagem atual = buscarViagem(id); atual.setNumero(dados.getNumero()); atual.setData(dados.getData()); atual.setStatus(dados.getStatus()); atual.setCliente(dados.getCliente()); return repository.save(atual); }
     public List<Viagem> buscarViagensPorCliente(Long clienteId) { return repository.findByClienteId(clienteId); }

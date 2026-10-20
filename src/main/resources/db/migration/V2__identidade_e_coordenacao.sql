@@ -1,0 +1,4 @@
+ALTER TABLE documentos ADD COLUMN IF NOT EXISTS chave_acesso VARCHAR(44);
+ALTER TABLE documentos ADD COLUMN IF NOT EXISTS sha256 VARCHAR(64);
+CREATE TABLE controle_importacao (id INTEGER PRIMARY KEY);
+INSERT INTO controle_importacao (id) VALUES (1);
