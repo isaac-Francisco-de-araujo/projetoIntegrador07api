@@ -49,9 +49,22 @@ public class ExtratorDadosXml {
             
             String clienteTelefone = dest != null ? getElementoTexto(dest, "fone") : null;
             if (clienteTelefone == null) clienteTelefone = "0000000000";
-            
-            Element infProt = (Element) document.getElementsByTagNameNS(NAMESPACE_CTE, "infProt").item(0);
-            String status = infProt != null ? getElementoTexto(infProt, "xMotivo") : "Autorizado";
+           
+Element infProt = (Element) document
+        .getElementsByTagNameNS(NAMESPACE_CTE, "infProt")
+        .item(0);
+
+String status;
+
+if (infProt == null) {
+    status = "Sem protocolo de autorização";
+} else {
+    String motivo = getElementoTexto(infProt, "xMotivo");
+
+    status = (motivo != null && !motivo.isBlank())
+            ? motivo
+            : "Protocolo sem motivo informado";
+}
 
             return new DadosViagemXml(
                     nCT,
