@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Painel de testes do RotaBrasil: importação de CT-e, viagens e prévia de e-mail.">
+  <title>RotaBrasil · Painel de testes</title>
+  <link rel="stylesheet" href="/painel.css">
+  <script src="/painel.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="#inicio"><span class="brand-icon" aria-hidden="true">R<span>→</span></span><span>RotaBrasil<small>DOCUMENTOS EM MOVIMENTO</small></span></a>
+    <div class="sidebar-label">ESPAÇO DE TRABALHO</div>
+    <nav aria-label="Navegação principal">
+      <a href="#inicio"><span aria-hidden="true">▦</span> Visão geral</a>
+      <a href="#importacao"><span aria-hidden="true">↑</span> Importar XML</a>
+      <a href="#viagens"><span aria-hidden="true">→</span> Viagens e documentos</a>
+      <a href="#clientes"><span aria-hidden="true">◎</span> Clientes</a>
+      <a href="#email"><span aria-hidden="true">✉</span> Prévia de e-mail</a>
+    </nav>
+    <div class="sidebar-note"><span class="dot"></span> Painel de testes<p>Use documentos sintéticos.<br>As importações gravam dados.</p></div>
+  </aside>
+  <main id="inicio">
+    <header class="topbar"><span>OPERAÇÃO / VISÃO GERAL</span><span class="environment">TESTES</span></header>
+    <div class="page-heading"><div><p class="eyebrow">SUA OPERAÇÃO, EM UM SÓ LUGAR</p><h1>Vamos colocar tudo em rota.</h1><p>Importe um CT-e e acompanhe seus clientes, viagens e documentos.</p></div><button id="atualizar" class="button secondary" type="button">↻ Atualizar dados</button></div>
+    <div id="aviso" class="notice" role="status" aria-live="polite" hidden></div>
+    <section class="stats" aria-label="Resumo do banco conectado">
+      <article><div class="stat-label">CLIENTES <span aria-hidden="true">◎</span></div><strong id="total-clientes">—</strong><p>Destinatários cadastrados</p></article>
+      <article><div class="stat-label">VIAGENS <span aria-hidden="true">→</span></div><strong id="total-viagens">—</strong><p>Identificadas pelo nCT</p></article>
+      <article><div class="stat-label">DOCUMENTOS <span aria-hidden="true">▤</span></div><strong id="total-documentos">—</strong><p>Registros no banco conectado</p></article>
+    </section>
+    <section id="importacao" class="card upload-card">
+      <div><p class="eyebrow">01 / ENTRADA DE DOCUMENTOS</p><h2>O próximo trajeto começa aqui.</h2><p>Selecione um XML de CT-e 4.00.<br>O sistema identifica a viagem e o destinatário.</p><span class="tag">XML · até 20 MB</span></div>
+      <form id="form-importacao">
+        <label class="file-area" for="arquivo"><span class="upload-symbol" aria-hidden="true">↑</span><strong>Escolha um XML para importar</strong><span id="arquivo-info">Nenhum arquivo selecionado</span><input id="arquivo" name="arquivo" type="file" accept=".xml,application/xml,text/xml" required></label>
+        <button class="button primary" id="importar" type="submit">Importar XML <span aria-hidden="true">→</span></button>
+        <small>Arquivos idênticos reutilizam o registro existente.</small>
+      </form>
+    </section>
+    <section id="viagens" class="card">
+      <div class="section-heading"><div><p class="eyebrow">02 / ACOMPANHAMENTO</p><h2>Viagens</h2></div><label class="search"><span class="sr-only">Buscar viagem ou cliente</span><input id="buscar-viagem" type="search" placeholder="Buscar nCT ou cliente…"></label></div>
+      <div class="table-wrap"><table><caption class="sr-only">Viagens cadastradas</caption><thead><tr><th>Nº CT-e</th><th>Cliente</th><th>Data</th><th>Status</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="lista-viagens"><tr><td colspan="5" class="empty">Carregando viagens…</td></tr></tbody></table></div>
+    </section>
+    <section id="documentos" class="card">
+      <div class="section-heading"><div><p class="eyebrow">03 / CONFERÊNCIA</p><h2>Documentos da viagem</h2></div><label class="select-label" for="viagem-selecionada">Viagem<select id="viagem-selecionada"><option value="">Escolha uma viagem</option></select></label></div>
+      <p class="section-help">Selecione os documentos que deseja conferir na prévia de e-mail.</p>
+      <div class="table-wrap"><table><caption class="sr-only">Documentos da viagem selecionada</caption><thead><tr><th>Selecionar</th><th>Documento</th><th>Tipo</th><th>Chave fiscal</th></tr></thead><tbody id="lista-documentos"><tr><td colspan="4" class="empty">Escolha uma viagem para consultar os documentos.</td></tr></tbody></table></div>
+    </section>
+    <div class="bottom-grid">
+      <section id="clientes" class="card"><div class="section-heading"><div><p class="eyebrow">CADASTRO</p><h2>Clientes</h2></div></div><ul id="lista-clientes" class="client-list"><li class="empty">Carregando clientes…</li></ul></section>
+      <section id="email" class="card"><p class="eyebrow">04 / PRÉVIA DE E-MAIL</p><h2>Confira antes de enviar.</h2><p class="section-help">Esta tela gera apenas uma prévia dos metadados. Não envia e-mail e não verifica a disponibilidade dos anexos.</p>
+        <form id="form-email"><label for="destinatario">Destinatário da prévia<input id="destinatario" type="email" maxlength="255" placeholder="destinatario@example.invalid" autocomplete="off" required></label><p id="selecao-info" class="selection-info">Escolha uma viagem e selecione documentos.</p><button id="gerar-previa" class="button primary" type="submit" disabled>Gerar prévia <span aria-hidden="true">→</span></button></form>
+        <div id="resultado-previa" class="preview" aria-live="polite" hidden></div>
+        <details><summary>Histórico da viagem</summary><div id="historico" class="history">Escolha uma viagem para consultar.</div></details>
+      </section>
+    </div>
+    <footer>RotaBrasil <span>·</span> Painel de apoio aos testes da API <span>·</span> Sem disparo de e-mail</footer>
+  </main>
+</body>
+</html>

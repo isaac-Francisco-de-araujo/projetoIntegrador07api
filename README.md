@@ -72,6 +72,14 @@ e travas de arquivo. Consulte a [Etapa 4](docs/etapa4-banco-migracoes.md) para
 inventário, backup e implantação em bancos existentes. O H2 Console padrão
 continua em `/h2-console`, com usuário `sa` e senha vazia, se habilitado.
 
+## Painel de testes
+
+A rota `/` apresenta um painel web para importar XML, consultar clientes,
+viagens e documentos e gerar prévia de e-mail. Ele é servido pelo próprio
+Spring Boot, sem instalar um projeto frontend separado. Não há disparo de e-mail
+pela tela. Use uma base isolada e documentos sintéticos; veja as
+[instruções do painel e teste de navegador](docs/frontend-testes.md).
+
 ## Endpoints
 
 - `GET /api/clientes`
@@ -126,7 +134,8 @@ A suíte tem 190 testes aprovados: os 108 casos das Etapas 1–5, incluindo
 37 casos de [contrato e integridade da API](docs/etapa6-contrato-api.md) e
 13 de [preparação para documentos adicionais](docs/etapa7-documentos-adicionais.md)
 19 de [prévia e histórico de e-mail](docs/etapa8-previa-email.md) e
-13 de [teste manual Gmail](docs/teste-gmail.md).
+13 de [teste manual Gmail](docs/teste-gmail.md). Há ainda 10 verificações de
+[navegador para o painel](docs/frontend-testes.md), separadas da suíte JUnit.
 
 ## Próximo passo
 
