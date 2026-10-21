@@ -8,6 +8,13 @@ arquivamento/restauração e prévia com destinatário e anexos explícitos. O e
 operacional de e-mail continua desativado. Esta versão exige migrações até **V6**;
 para testar, use banco novo separado conforme a documentação.
 
+## Documento geral do projeto
+
+Consulte a [visão geral do sistema](docs/visao-geral-do-sistema.md) para entender
+o que já funciona, o objetivo da entrega, as decisões pendentes e os próximos
+passos. Também disponível em [PDF](docs/visao-geral-do-sistema.pdf) e
+[Word](docs/visao-geral-do-sistema.docx), com referência em 21/10/2026.
+
 ## Tecnologias
 
 - Java 25
@@ -87,7 +94,7 @@ pela tela. Use uma base isolada e documentos sintéticos; veja as
 [instruções do painel e teste de navegador](docs/frontend-testes.md).
 
 Veja também [exclusões e arquivamento reversível](docs/exclusoes-arquivamento.md).
-**Banco existente precisa da migração V5 antes de iniciar esta versão.**
+**Banco existente precisa das migrações até V6 antes de iniciar esta versão.**
 
 ## Endpoints
 
@@ -100,13 +107,18 @@ Veja também [exclusões e arquivamento reversível](docs/exclusoes-arquivamento
 - `GET /api/viagens/{id}`
 - `POST /api/viagens`
 - `PUT /api/viagens/{id}`
-- `DELETE /api/viagens/{id}` (sem documentos ou envios)
+- `DELETE /api/viagens/{id}` (sem documentos, anexos ou envios)
 - `GET /api/documentos` (ativos)
 - `DELETE /api/documentos/{id}` (arquivamento)
 - `POST /api/documentos/{id}/restaurar`
 - `GET /api/viagens/{id}/documentos/arquivados`
 - `GET /api/viagens/{id}/documentos`
 - `POST /api/processamento/xml` com multipart `arquivo`
+- `POST /api/pacotes/inspecao` com multipart `arquivo`
+- `POST /api/pacotes/confirmacao` com multipart `arquivo` e JSON `configuracao`
+- `GET /api/viagens/{id}/anexos` (ativos; `?arquivados=true` para arquivados)
+- `DELETE /api/anexos/{id}` (arquivamento do PDF em todas as viagens vinculadas)
+- `POST /api/anexos/{id}/restaurar`
 - `POST /api/viagens/{id}/previa-email` (conferência de metadados, sem envio)
 - `GET /api/viagens/{id}/envios` (histórico existente)
 
@@ -124,7 +136,9 @@ fora do contrato retornam 400. Consumidores do CRUD devem adaptar o JSON.
 A entidade `Viagem` mantém `List<Documento>`, permitindo múltiplos documentos
 por viagem. A [Etapa 7](docs/etapa7-documentos-adicionais.md) protege a coleção
 contra exclusão automática e verifica consultas de tipos mistos já cadastrados.
-Upload e associação de PDFs/outros anexos dependem de regra operacional confirmada.
+PDFs podem ser importados pelo ZIP com associação explícita a uma ou várias
+viagens; veja o [fluxo assistido](docs/pacotes-assistidos.md). Outros tipos de
+anexo não são aceitos nessa entrada.
 
 ## E-mail
 
@@ -142,14 +156,11 @@ conectividade. Nenhum e-mail real foi enviado nesta preparação.
 mvn clean test
 ```
 
-A suíte tem 208 testes aprovados: os 108 casos das Etapas 1–5, incluindo
-[HTTP real, falhas, segurança XML e reinicialização](docs/etapa5-testes-integracao.md),
-37 casos de [contrato e integridade da API](docs/etapa6-contrato-api.md) e
-13 de [preparação para documentos adicionais](docs/etapa7-documentos-adicionais.md)
-19 de [prévia e histórico de e-mail](docs/etapa8-previa-email.md) e
-13 de [teste manual Gmail](docs/teste-gmail.md) e 18 de
-[exclusões/arquivamento e migração](docs/exclusoes-arquivamento.md). Há ainda 17 verificações de
-[navegador para o painel](docs/frontend-testes.md), separadas da suíte JUnit.
+A última execução da suíte teve **234 testes aprovados**, sem falhas, erros ou
+casos ignorados. Inclui os 208 cenários anteriores e 26 novos casos do fluxo ZIP,
+associações, concorrência, rollback, reinicialização, recuperação e backup.
+Há também **25 verificações de navegador**: 17 do painel e 8 do fluxo ZIP.
+Os testes utilizam exclusivamente documentos sintéticos e bancos isolados.
 
 ## Próximo passo
 
@@ -157,8 +168,10 @@ O vínculo legado foi corrigido com autorização, e o banco fornecido foi migra
 até V4. Inventário, preservação dos dados e inicialização com `validate` foram
 conferidos; veja a [Etapa 4](docs/etapa4-banco-migracoes.md).
 
-A Etapa 7 prepara e verifica múltiplos documentos por viagem, preservando o
-acervo. Associação de PDFs/outros anexos depende de regra operacional confirmada.
-A Etapa 8 tem prévia e consulta de histórico preparadas. Para implementar envio
-real, faltam autorização e definição do destinatário, SMTP, documentos, momento
-de envio e políticas de histórico/falhas/reenvio. Nenhum envio real está ativo.
+A importação assistida de ZIP e a associação manual de PDFs/faturas já estão
+implementadas. A prévia permite conferir destinatário, XMLs e PDFs, sem envio.
+Os próximos passos são validar amostras anonimizadas e regras comerciais,
+preparar o banco existente com migrações até V6 quando autorizado e implementar
+envio com auditoria, falhas e confirmação de reenvio. A integração Outlook e o
+recebimento automático do ZIP ainda dependem de definição e implementação.
+Veja a [visão geral e o plano de continuidade](docs/visao-geral-do-sistema.md).
