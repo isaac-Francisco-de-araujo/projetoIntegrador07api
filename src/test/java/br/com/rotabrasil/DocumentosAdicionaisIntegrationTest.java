@@ -193,4 +193,15 @@ class DocumentosAdicionaisIntegrationTest {
         assertThat(Files.readAllBytes(base.resolve("backup/arquivos/pdf/comprovante.pdf"))).isEqualTo(pdf.bytes());
         assertThat(Files.readAllBytes(base.resolve("backup/arquivos/texto/notas.txt"))).isEqualTo(texto.bytes());preservado(pdf);preservado(texto);
     }
+    @Test void arquivamentoPersisteAposReinicioERestauraMesmoDocumento() throws Exception {
+        var importado=importar(CteFixture.xml());long id=importado.get("documentoId").asLong();long viagemId=importado.get("viagemId").asLong();
+        Path caminho=Path.of(jdbc().queryForObject("SELECT caminho FROM documentos WHERE id=?",String.class,id));byte[] antes=Files.readAllBytes(caminho);
+        assertThat(http().exchange("/api/documentos/"+id,HttpMethod.DELETE,HttpEntity.EMPTY,JsonNode.class).getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        contexto.close();contexto=abrir(false);
+        assertThat(get("/api/viagens/"+viagemId+"/documentos").isEmpty()).isTrue();
+        var arquivados=get("/api/viagens/"+viagemId+"/documentos/arquivados");assertThat(arquivados.size()).isEqualTo(1);assertThat(arquivados.get(0).get("id").asLong()).isEqualTo(id);
+        var restaurado=http().postForEntity("/api/documentos/"+id+"/restaurar",HttpEntity.EMPTY,JsonNode.class);
+        assertThat(restaurado.getStatusCode()).isEqualTo(HttpStatus.OK);assertThat(restaurado.getBody().get("id").asLong()).isEqualTo(id);
+        assertThat(Files.readAllBytes(caminho)).isEqualTo(antes);assertThat(importar(CteFixture.xml()).get("documentoId").asLong()).isEqualTo(id);
+    }
 }

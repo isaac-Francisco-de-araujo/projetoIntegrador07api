@@ -2,6 +2,7 @@ package br.com.rotabrasil.service;
 
 import br.com.rotabrasil.exception.ArquivoInvalidoException;
 import br.com.rotabrasil.exception.ConflitoDocumentoException;
+import br.com.rotabrasil.exception.ConflitoRecursoException;
 import br.com.rotabrasil.exception.RecursoNaoEncontradoException;
 import br.com.rotabrasil.model.Documento;
 import br.com.rotabrasil.repository.DocumentoRepository;
@@ -25,16 +26,18 @@ public class DocumentoService {
     private final ExtratorDadosXml extrator;
 
     public Documento buscarDocumento(Long id) {
-        return repository.findById(id)
+        var documento = repository.findById(id)
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Documento não encontrado: " + id));
+        if (documento.getArquivadoEm() != null) throw new ConflitoRecursoException("Documento arquivado; restaure antes de selecioná-lo");
+        return documento;
     }
 
     public List<Documento> listarDocumentos() {
-        return repository.findAll();
+        return repository.findByArquivadoEmIsNull();
     }
 
     public List<Documento> listarDocumentosDaViagem(Long viagemId) {
-        return repository.findByViagemId(viagemId);
+        return repository.findByViagemIdAndArquivadoEmIsNull(viagemId);
     }
 
     /** Somente leitura: não preenche identidade nem hash dos registros antigos. */
@@ -60,6 +63,7 @@ public class DocumentoService {
         if (encontrados.isEmpty()) return Optional.empty();
 
         Documento existente = encontrados.getFirst();
+        if (existente.getArquivadoEm() != null) throw new ConflitoDocumentoException("Documento arquivado; restaure o cadastro antes de reimportar");
         validarRelacionamento(existente, dados);
         String hashEmDisco = ConteudoXml.sha256(lerArquivoExistente(existente));
         if (existente.getSha256() != null && !existente.getSha256().equals(hashEmDisco)) {

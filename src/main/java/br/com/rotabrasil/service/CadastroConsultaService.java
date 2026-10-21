@@ -78,6 +78,46 @@ public class CadastroConsultaService {
         return ViagemResponse.de(viagens.atualizarViagem(id, viagem(dados)));
     }
 
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public void excluirViagem(Long id) {
+        coordenacao.bloquear();
+        var viagem = viagens.buscarViagem(id);
+        if (documentosRepository.existsByViagemId(id) || enviosRepository.existsByViagemId(id)) {
+            throw new ConflitoRecursoException("Viagem possui documentos ou histórico de envio e não pode ser excluída");
+        }
+        viagensRepository.delete(viagem);
+        viagensRepository.flush();
+    }
+
+    public List<DocumentoArquivadoResponse> listarArquivados(Long viagemId) {
+        viagens.buscarViagem(viagemId);
+        return documentosRepository.findByViagemIdAndArquivadoEmIsNotNull(viagemId).stream().map(DocumentoArquivadoResponse::de).toList();
+    }
+
+    private Documento documentoIncluindoArquivado(Long id) {
+        return documentosRepository.findById(id).orElseThrow(() ->
+                new br.com.rotabrasil.exception.RecursoNaoEncontradoException("Documento não encontrado: " + id));
+    }
+
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public void arquivarDocumento(Long id) {
+        coordenacao.bloquear();
+        var documento = documentoIncluindoArquivado(id);
+        if (documento.getArquivadoEm() == null) {
+            documento.setArquivadoEm(java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC));
+            documentosRepository.saveAndFlush(documento);
+        }
+    }
+
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public DocumentoResponse restaurarDocumento(Long id) {
+        coordenacao.bloquear();
+        var documento = documentoIncluindoArquivado(id);
+        documento.setArquivadoEm(null);
+        documentosRepository.saveAndFlush(documento);
+        return DocumentoResponse.de(documento);
+    }
+
     private Cliente cliente(ClienteRequest dados) {
         return Cliente.builder().nome(dados.nome()).cnpj(dados.cnpj()).email(dados.email()).telefone(dados.telefone()).build();
     }

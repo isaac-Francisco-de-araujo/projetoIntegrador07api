@@ -118,6 +118,90 @@ def main():
                         assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
                         page.screenshot(path=str(output / 'mobile.png'), full_page=True)
                         checks.append('Layout móvel sem rolagem horizontal da página')
+                        deletes = []
+                        page.on('request', lambda request: deletes.append(request.url) if request.method == 'DELETE' else None)
+                        response = page.request.post(url + '/api/clientes', data={'nome': 'Cliente sem vínculos', 'cnpj': '11111111111111'})
+                        assert response.status == 201
+                        cliente_teste = response.json()['id']
+                        page.locator('#atualizar').click()
+                        expect(page.locator('#total-clientes')).to_have_text('2')
+                        page.locator(f'[data-excluir-cliente="{cliente_teste}"]').click()
+                        expect(page.get_by_role('dialog')).to_be_visible()
+                        expect(page.locator('#cancelar-exclusao')).to_be_focused()
+                        page.locator('#cancelar-exclusao').click()
+                        assert deletes == []
+                        expect(page.locator('#total-clientes')).to_have_text('2')
+                        checks.append('Cancelar confirmação não emite pedido DELETE')
+                        page.locator(f'[data-excluir-cliente="{cliente_teste}"]').click()
+                        page.locator('#executar-exclusao').click()
+                        expect(page.get_by_role('dialog')).not_to_be_visible()
+                        expect(page.locator('#total-clientes')).to_have_text('1')
+                        expect(page.locator('#aviso')).to_contain_text('Cliente excluído com sucesso')
+                        assert page.request.get(url + '/api/clientes/' + str(cliente_teste)).status == 404
+                        checks.append('Cliente sem vínculos excluído com resposta 204 e tela atualizada')
+                        response = page.request.post(url + '/api/clientes', data={'nome': 'Cliente com viagem', 'cnpj': '11111111111111'})
+                        cliente_teste = response.json()['id']
+                        response = page.request.post(url + '/api/viagens', data={'numero': '1', 'clienteId': cliente_teste})
+                        assert response.status == 201
+                        viagem_teste = response.json()['id']
+                        page.locator('#atualizar').click()
+                        expect(page.locator('#total-viagens')).to_have_text('2')
+                        page.locator(f'[data-excluir-cliente="{cliente_teste}"]').click()
+                        page.locator('#executar-exclusao').click()
+                        expect(page.get_by_role('dialog')).not_to_be_visible()
+                        expect(page.locator('#aviso')).to_contain_text('não pode ser excluído')
+                        expect(page.locator('#total-clientes')).to_have_text('2')
+                        checks.append('Cliente vinculado é preservado e o motivo é exibido')
+                        page.locator(f'[data-excluir-viagem="{viagem_teste}"]').click()
+                        count = len(deletes)
+                        page.keyboard.press('Escape')
+                        expect(page.get_by_role('dialog')).not_to_be_visible()
+                        assert len(deletes) == count
+                        page.locator(f'[data-excluir-viagem="{viagem_teste}"]').click()
+                        page.locator('#executar-exclusao').click()
+                        expect(page.get_by_role('dialog')).not_to_be_visible()
+                        expect(page.locator('#total-viagens')).to_have_text('1')
+                        assert page.request.get(url + '/api/clientes/' + str(cliente_teste)).status == 200
+                        page.locator(f'[data-excluir-cliente="{cliente_teste}"]').click()
+                        page.locator('#executar-exclusao').click()
+                        expect(page.locator('#total-clientes')).to_have_text('1')
+                        checks.append('Viagem vazia excluída sem apagar cliente; Escape cancela a confirmação')
+                        page.locator('#viagem-selecionada').select_option('1')
+                        expect(page.locator('#lista-documentos input[type=checkbox]')).to_have_count(1)
+                        page.get_by_role('button', name='Arquivar documento sintetico.xml', exact=True).click()
+                        expect(page.locator('#descricao-exclusao')).to_contain_text('preservado')
+                        count = len(deletes)
+                        page.locator('#cancelar-exclusao').click()
+                        assert len(deletes) == count
+                        expect(page.locator('#total-documentos')).to_have_text('1')
+                        checks.append('Arquivamento tem confirmação própria e cancelamento sem efeitos')
+                        files = list((Path(base) / 'viagens/66213').glob('*.xml'))
+                        assert len(files) == 1
+                        arquivo = files[0]
+                        antes = arquivo.read_bytes()
+                        modificacao = arquivo.stat().st_mtime_ns
+                        page.get_by_role('button', name='Arquivar documento sintetico.xml', exact=True).click()
+                        page.locator('#executar-exclusao').click()
+                        expect(page.get_by_role('dialog')).not_to_be_visible()
+                        expect(page.locator('#total-documentos')).to_have_text('0')
+                        expect(page.locator('#gerar-previa')).to_be_disabled()
+                        assert arquivo.read_bytes() == antes
+                        response = page.request.post(url + '/api/viagens/1/previa-email', data={'destinatario': 'teste@example.invalid', 'documentoIds': [1]})
+                        assert response.status == 409
+                        page.locator('#arquivo').set_input_files({'name': 'sintetico.xml', 'mimeType': 'application/xml', 'buffer': xml})
+                        page.locator('#importar').click()
+                        expect(page.locator('#aviso')).to_contain_text('restaure')
+                        checks.append('Arquivamento preserva XML e bloqueia prévia/reimportação sem restauração')
+                        page.locator('#mostrar-arquivados').check()
+                        expect(page.get_by_role('button', name='Restaurar documento sintetico.xml', exact=True)).to_be_visible()
+                        expect(page.locator('#lista-documentos input[type=checkbox]')).to_have_count(0)
+                        page.get_by_role('button', name='Restaurar documento sintetico.xml', exact=True).click()
+                        expect(page.locator('#total-documentos')).to_have_text('1')
+                        expect(page.locator('#lista-documentos')).to_contain_text('Nenhum documento arquivado')
+                        page.locator('#mostrar-arquivados').uncheck()
+                        expect(page.locator('#lista-documentos input[type=checkbox]')).to_have_count(1)
+                        assert arquivo.read_bytes() == antes and arquivo.stat().st_mtime_ns == modificacao
+                        checks.append('Documento restaurado com mesmo ID e arquivo intocado, sem seleção automática')
                         assert not errors, errors
                         assert page.request.get(url + '/api/viagens/1/envios').json() == []
                         result = {'verificacoes': checks, 'total': len(checks), 'errosJavaScript': errors, 'somenteDadosSinteticos': True, 'envioRealExecutado': False}

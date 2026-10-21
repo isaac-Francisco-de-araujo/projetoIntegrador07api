@@ -18,4 +18,6 @@ public class ViagemController {
     public ViagemResponse cadastrar(@Valid @RequestBody ViagemRequest viagem) { return service.cadastrarViagem(viagem); }
     @PutMapping("/{id}")
     public ViagemResponse atualizar(@PathVariable @Positive Long id, @Valid @RequestBody ViagemRequest viagem) { return service.atualizarViagem(id, viagem); }
+    @DeleteMapping("/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void excluir(@PathVariable @Positive Long id) { service.excluirViagem(id); }
 }

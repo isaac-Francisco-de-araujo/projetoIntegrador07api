@@ -80,6 +80,9 @@ Spring Boot, sem instalar um projeto frontend separado. Não há disparo de e-ma
 pela tela. Use uma base isolada e documentos sintéticos; veja as
 [instruções do painel e teste de navegador](docs/frontend-testes.md).
 
+Veja também [exclusões e arquivamento reversível](docs/exclusoes-arquivamento.md).
+**Banco existente precisa da migração V5 antes de iniciar esta versão.**
+
 ## Endpoints
 
 - `GET /api/clientes`
@@ -91,7 +94,11 @@ pela tela. Use uma base isolada e documentos sintéticos; veja as
 - `GET /api/viagens/{id}`
 - `POST /api/viagens`
 - `PUT /api/viagens/{id}`
-- `GET /api/documentos`
+- `DELETE /api/viagens/{id}` (sem documentos ou envios)
+- `GET /api/documentos` (ativos)
+- `DELETE /api/documentos/{id}` (arquivamento)
+- `POST /api/documentos/{id}/restaurar`
+- `GET /api/viagens/{id}/documentos/arquivados`
 - `GET /api/viagens/{id}/documentos`
 - `POST /api/processamento/xml` com multipart `arquivo`
 - `POST /api/viagens/{id}/previa-email` (conferência de metadados, sem envio)
@@ -129,12 +136,13 @@ conectividade. Nenhum e-mail real foi enviado nesta preparação.
 mvn clean test
 ```
 
-A suíte tem 190 testes aprovados: os 108 casos das Etapas 1–5, incluindo
+A suíte tem 208 testes aprovados: os 108 casos das Etapas 1–5, incluindo
 [HTTP real, falhas, segurança XML e reinicialização](docs/etapa5-testes-integracao.md),
 37 casos de [contrato e integridade da API](docs/etapa6-contrato-api.md) e
 13 de [preparação para documentos adicionais](docs/etapa7-documentos-adicionais.md)
 19 de [prévia e histórico de e-mail](docs/etapa8-previa-email.md) e
-13 de [teste manual Gmail](docs/teste-gmail.md). Há ainda 10 verificações de
+13 de [teste manual Gmail](docs/teste-gmail.md) e 18 de
+[exclusões/arquivamento e migração](docs/exclusoes-arquivamento.md). Há ainda 17 verificações de
 [navegador para o painel](docs/frontend-testes.md), separadas da suíte JUnit.
 
 ## Próximo passo

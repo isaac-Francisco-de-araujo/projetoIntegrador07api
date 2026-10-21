@@ -5,6 +5,8 @@ const state = { clientes: [], viagens: [], documentos: [], daViagem: [], viagem:
 let consulta = 0;
 let atualizacao = 0;
 let previa = 0;
+let exclusao = null;
+let excluindo = false;
 
 function element(tag, text, className) {
   const node = document.createElement(tag);
@@ -24,6 +26,7 @@ async function api(path, options = {}) {
   let response;
   try { response = await fetch(path, { credentials: 'same-origin', ...options }); }
   catch { throw new Error('Não foi possível conectar à aplicação. Confira se o servidor está disponível e tente novamente.'); }
+  if (response.status === 204) return null;
   let body = null;
   try { body = await response.json(); } catch { /* Respostas sem JSON não devem expor HTML ou detalhes internos. */ }
   if (!response.ok) {
@@ -55,7 +58,12 @@ function clientes() {
     const info = element('div');
     info.append(element('strong', cliente.nome || 'Sem nome'), element('small', `CNPJ ${cliente.cnpj || 'não informado'}`));
     if (cliente.email) info.append(element('small', cliente.email));
-    item.append(info); list.append(item);
+    info.className = 'client-info';
+    const excluir = element('button', 'Excluir', 'delete-action');
+    excluir.type = 'button'; excluir.dataset.excluirCliente = String(cliente.id);
+    excluir.setAttribute('aria-label', `Excluir cliente ${cliente.nome}`);
+    excluir.addEventListener('click', () => confirmarExclusao('cliente', cliente.id, cliente.nome, excluir));
+    item.append(info, excluir); list.append(item);
   }
 }
 
@@ -69,10 +77,14 @@ function viagens() {
   for (const viagem of items) {
     const row = element('tr'); const number = element('td'); number.append(element('strong', viagem.numero));
     const status = element('td'); status.append(element('span', viagem.status || 'Sem status informado', 'status-pill'));
-    const action = element('td'); const button = element('button', 'Ver documentos →', 'row-action');
+    const action = element('td'); action.className = 'row-actions'; const button = element('button', 'Ver documentos →', 'row-action');
     button.type = 'button'; button.setAttribute('aria-label', `Ver documentos da viagem ${viagem.numero}`);
     button.addEventListener('click', () => { $('viagem-selecionada').value = String(viagem.id); carregarDocumentos(String(viagem.id)); $('documentos').scrollIntoView({ behavior: 'smooth' }); });
-    action.append(button);
+    const excluir = element('button', 'Excluir', 'delete-action');
+    excluir.type = 'button'; excluir.dataset.excluirViagem = String(viagem.id);
+    excluir.setAttribute('aria-label', `Excluir viagem ${viagem.numero}`);
+    excluir.addEventListener('click', () => confirmarExclusao('viagem', viagem.id, viagem.numero, excluir));
+    action.append(button, excluir);
     row.append(number, element('td', names.get(viagem.clienteId) || `Cliente #${viagem.clienteId}`), element('td', data(viagem.data)), status, action);
     tbody.append(row);
   }
@@ -87,19 +99,29 @@ function atualizarSelecao() {
 
 function documentos() {
   const tbody = $('lista-documentos');
-  if (!state.daViagem.length) { vazio(tbody, 4, 'Esta viagem ainda não possui documentos.'); return; }
+  const arquivados = $('mostrar-arquivados').checked;
+  if (!state.daViagem.length) { vazio(tbody, 5, arquivados ? 'Nenhum documento arquivado nesta viagem.' : 'Esta viagem ainda não possui documentos ativos.'); return; }
   tbody.replaceChildren();
   for (const doc of state.daViagem) {
-    const row = element('tr'); const choice = element('td'); const checkbox = element('input');
-    checkbox.type = 'checkbox'; checkbox.value = String(doc.id); checkbox.setAttribute('aria-label', `Selecionar ${doc.nomeArquivo}`);
-    checkbox.addEventListener('change', () => {
-      if (checkbox.checked) state.selecionados.add(doc.id); else state.selecionados.delete(doc.id);
-      invalidarPrevia(); atualizarSelecao();
-    });
-    choice.append(checkbox);
+    const row = element('tr'); const choice = element('td');
+    if (arquivados) choice.textContent = 'Arquivado';
+    else {
+      const checkbox = element('input');
+      checkbox.type = 'checkbox'; checkbox.value = String(doc.id); checkbox.setAttribute('aria-label', `Selecionar ${doc.nomeArquivo}`);
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) state.selecionados.add(doc.id); else state.selecionados.delete(doc.id);
+        invalidarPrevia(); atualizarSelecao();
+      });
+      choice.append(checkbox);
+    }
     const name = element('td', doc.nomeArquivo, 'filename');
     name.append(element('small', ` · #${doc.id}`));
-    row.append(choice, name, element('td', doc.tipo), element('td', doc.chaveAcesso || 'Não se aplica / não informada', 'fiscal-key'));
+    const action = element('td'); const button = element('button', arquivados ? 'Restaurar' : 'Arquivar', arquivados ? 'row-action' : 'delete-action');
+    button.type = 'button'; button.setAttribute('aria-label', `${arquivados ? 'Restaurar' : 'Arquivar'} documento ${doc.nomeArquivo}`);
+    if (arquivados) button.addEventListener('click', () => restaurarDocumento(doc, button));
+    else button.addEventListener('click', () => confirmarExclusao('documento', doc.id, doc.nomeArquivo, button));
+    action.append(button);
+    row.append(choice, name, element('td', doc.tipo), element('td', doc.chaveAcesso || 'Não se aplica / não informada', 'fiscal-key'), action);
     tbody.append(row);
   }
 }
@@ -114,15 +136,15 @@ async function carregarDocumentos(id) {
   const version = ++consulta;
   state.viagem = id; state.selecionados.clear(); state.daViagem = []; invalidarPrevia();
   state.carregando = Boolean(id); atualizarSelecao();
-  if (!id) { vazio($('lista-documentos'), 4, 'Escolha uma viagem para consultar os documentos.'); $('historico').textContent = 'Escolha uma viagem para consultar.'; return; }
-  vazio($('lista-documentos'), 4, 'Carregando documentos…'); $('historico').textContent = 'Carregando histórico…';
+  if (!id) { vazio($('lista-documentos'), 5, 'Escolha uma viagem para consultar os documentos.'); $('historico').textContent = 'Escolha uma viagem para consultar.'; return; }
+  vazio($('lista-documentos'), 5, 'Carregando documentos…'); $('historico').textContent = 'Carregando histórico…';
   try {
-    const [docs, history] = await Promise.all([api(`/api/viagens/${encodeURIComponent(id)}/documentos`), api(`/api/viagens/${encodeURIComponent(id)}/envios`)]);
+    const [docs, history] = await Promise.all([api(`/api/viagens/${encodeURIComponent(id)}/documentos${$('mostrar-arquivados').checked ? '/arquivados' : ''}`), api(`/api/viagens/${encodeURIComponent(id)}/envios`)]);
     if (version !== consulta) return;
     state.daViagem = docs; documentos(); historico(history);
   } catch (error) {
     if (version !== consulta) return;
-    vazio($('lista-documentos'), 4, 'Não foi possível carregar os documentos. Use Atualizar dados para tentar novamente.');
+    vazio($('lista-documentos'), 5, 'Não foi possível carregar os documentos. Use Atualizar dados para tentar novamente.');
     $('historico').textContent = 'Histórico indisponível.'; avisar(error.message, true);
   } finally {
     if (version === consulta) { state.carregando = false; atualizarSelecao(); }
@@ -146,6 +168,62 @@ async function atualizar(viagemId = null) {
   } finally { if (version === atualizacao) $('atualizar').disabled = false; }
 }
 
+function confirmarExclusao(tipo, id, nome, origem) {
+  if (excluindo) return;
+  exclusao = { tipo, id, origem };
+  $('titulo-exclusao').textContent = tipo === 'documento' ? 'Arquivar documento?' : `Excluir ${tipo}?`;
+  $('executar-exclusao').textContent = tipo === 'documento' ? 'Arquivar documento' : 'Excluir cadastro';
+  $('descricao-exclusao').textContent = `Você está excluindo ${tipo === 'cliente' ? 'o cliente' : 'a viagem'} “${nome}”. Essa ação remove o cadastro.`;
+  if (tipo === 'documento') $('descricao-exclusao').textContent = `Arquivar “${nome}”? O XML/PDF será preservado e poderá ser restaurado.`;
+  $('regra-exclusao').textContent = tipo === 'documento' ? 'O documento sai da lista ativa e da prévia de e-mail. Não haverá exclusão do arquivo.' : tipo === 'cliente' ? 'Clientes com viagens ou histórico de envio não podem ser excluídos.' : 'Viagens com documentos ou histórico de envio não podem ser excluídas. O cliente será preservado.';
+  $('confirmar-exclusao').showModal();
+}
+
+function fecharExclusao() {
+  if (excluindo) return;
+  const origem = exclusao?.origem;
+  $('confirmar-exclusao').close(); exclusao = null;
+  if (origem?.isConnected) origem.focus(); else $('atualizar').focus();
+}
+
+$('cancelar-exclusao').addEventListener('click', fecharExclusao);
+$('confirmar-exclusao').addEventListener('cancel', event => {
+  event.preventDefault(); fecharExclusao();
+});
+$('form-exclusao').addEventListener('submit', async event => {
+  event.preventDefault();
+  if (!exclusao || excluindo) return;
+  const pedido = exclusao;
+  excluindo = true;
+  $('executar-exclusao').disabled = true; $('cancelar-exclusao').disabled = true;
+  $('executar-exclusao').textContent = 'Excluindo…';
+  try {
+    if (pedido.tipo === 'documento') invalidarPrevia();
+    const rota = { cliente: 'clientes', viagem: 'viagens', documento: 'documentos' }[pedido.tipo];
+    await api(`/api/${rota}/${encodeURIComponent(pedido.id)}`, { method: 'DELETE' });
+    avisar(pedido.tipo === 'documento' ? 'Documento arquivado. O arquivo foi preservado e pode ser restaurado.' : `${pedido.tipo === 'cliente' ? 'Cliente excluído' : 'Viagem excluída'} com sucesso.`);
+    try { await atualizar(); }
+    catch { avisar('Exclusão concluída, mas a atualização falhou. Use Atualizar dados antes de continuar.', true); }
+  } catch (error) { avisar(error.message, true); }
+  finally {
+    excluindo = false;
+    $('executar-exclusao').disabled = false; $('cancelar-exclusao').disabled = false;
+    $('executar-exclusao').textContent = 'Excluir cadastro'; fecharExclusao();
+  }
+});
+
+async function restaurarDocumento(doc, button) {
+  button.disabled = true;
+  try {
+    await api(`/api/documentos/${encodeURIComponent(doc.id)}/restaurar`, { method: 'POST' });
+    avisar('Documento restaurado. Consulte a lista de documentos ativos.');
+    try { await atualizar(); }
+    catch { avisar('Restauração concluída, mas a atualização falhou. Use Atualizar dados para conferir.', true); }
+  } catch (error) { avisar(error.message, true); }
+  finally { button.disabled = false; }
+}
+
+$('mostrar-arquivados').addEventListener('change', () => carregarDocumentos(state.viagem));
 $('buscar-viagem').addEventListener('input', viagens);
 $('viagem-selecionada').addEventListener('change', event => carregarDocumentos(event.target.value));
 $('destinatario').addEventListener('input', invalidarPrevia);

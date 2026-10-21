@@ -156,3 +156,9 @@ dos arquivos existentes são comparados antes/depois para conferir preservação
 Próxima etapa: documentos adicionais (Etapa 7), mantendo múltiplos documentos
 por viagem. Associação automática de PDFs depende de regra operacional
 confirmada; não foi implementada nesta etapa.
+
+## Evolução posterior
+
+A [migração V5 e as exclusões/arquivamento](exclusoes-arquivamento.md) ampliam
+o contrato: viagem vazia pode ser excluída, documentos podem ser arquivados e
+restaurados, e consultas usuais de documentos retornam somente ativos.

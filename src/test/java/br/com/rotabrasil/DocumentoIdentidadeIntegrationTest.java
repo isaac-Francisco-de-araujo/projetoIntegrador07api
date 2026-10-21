@@ -323,4 +323,18 @@ class DocumentoIdentidadeIntegrationTest {
             assertThat(arquivos.toList()).isEmpty();
         }
     }
+
+    /** Fixtures históricas sem V4: adicionar somente a coluna opcional exigida pelo modelo atual. */
+    @org.springframework.boot.test.context.TestConfiguration
+    static class EsquemaHistorico {
+        @org.springframework.context.annotation.Bean
+        org.springframework.boot.autoconfigure.flyway.FlywayMigrationStrategy migracaoHistorica() {
+            return flyway -> {
+                flyway.migrate();
+                try (var conexao = flyway.getConfiguration().getDataSource().getConnection(); var comando = conexao.createStatement()) {
+                    comando.execute("ALTER TABLE documentos ADD COLUMN arquivado_em TIMESTAMP(6) WITH TIME ZONE");
+                } catch (java.sql.SQLException ex) { throw new IllegalStateException(ex); }
+            };
+        }
+    }
 }

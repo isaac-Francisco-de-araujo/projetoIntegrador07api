@@ -184,4 +184,25 @@ class MigracaoEBackupTest {
             assertThat(colunaIdentidade(conexao)).isFalse();
         }
     }
+
+    @Test void migraV4ParaV5ComBackupSemAlterarDadosOuArquivos() throws Exception {
+        try (var conexao = legado()) {
+            criarBackup(conexao);
+            var flyway = org.flywaydb.core.Flyway.configure()
+                    .dataSource(new org.springframework.jdbc.datasource.SingleConnectionDataSource(conexao, true))
+                    .baselineVersion("1").baselineOnMigrate(false).cleanDisabled(true).target("4")
+                    .javaMigrations(new br.com.rotabrasil.migracao.V3__ConferirEPreencherIdentidade(new InventarioBanco(raiz()), raiz(), backup())).load();
+            flyway.baseline(); flyway.migrate();
+            var antes = new java.util.TreeMap<String,String>();
+            try (var comando = conexao.createStatement(); var rs = comando.executeQuery("SELECT * FROM documentos WHERE id=103")) {
+                rs.next();for(int campo=1;campo<=rs.getMetaData().getColumnCount();campo++)antes.put(rs.getMetaData().getColumnName(campo),rs.getString(campo));
+            }
+            Path novoBackup=base.resolve("backup-v4");BackupBanco.criar(conexao,raiz(),novoBackup);
+            ManutencaoBanco.migrar(conexao,raiz(),novoBackup);
+            for(var campo:antes.entrySet())assertThat(escalar(conexao,"SELECT "+campo.getKey()+" FROM documentos WHERE id=103")).isEqualTo(campo.getValue());
+            assertThat(escalar(conexao,"SELECT arquivado_em FROM documentos WHERE id=103")).isNull();
+            assertThat(escalar(conexao,"SELECT COUNT(*) FROM \"flyway_schema_history\" WHERE \"version\"='5' AND \"success\"=TRUE")).isEqualTo("1");
+            assertThat(Files.readString(raiz().resolve("legado.xml"))).isEqualTo(CteFixture.xml());
+        }
+    }
 }

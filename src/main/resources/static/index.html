@@ -44,8 +44,9 @@
     </section>
     <section id="documentos" class="card">
       <div class="section-heading"><div><p class="eyebrow">03 / CONFERÊNCIA</p><h2>Documentos da viagem</h2></div><label class="select-label" for="viagem-selecionada">Viagem<select id="viagem-selecionada"><option value="">Escolha uma viagem</option></select></label></div>
-      <p class="section-help">Selecione os documentos que deseja conferir na prévia de e-mail.</p>
-      <div class="table-wrap"><table><caption class="sr-only">Documentos da viagem selecionada</caption><thead><tr><th>Selecionar</th><th>Documento</th><th>Tipo</th><th>Chave fiscal</th></tr></thead><tbody id="lista-documentos"><tr><td colspan="4" class="empty">Escolha uma viagem para consultar os documentos.</td></tr></tbody></table></div>
+      <label class="archive-filter"><input id="mostrar-arquivados" type="checkbox"> Consultar documentos arquivados</label>
+      <p class="section-help">Selecione os documentos ativos para a prévia. Arquivamento preserva o arquivo e permite restaurar.</p>
+      <div class="table-wrap"><table><caption class="sr-only">Documentos da viagem selecionada</caption><thead><tr><th>Selecionar</th><th>Documento</th><th>Tipo</th><th>Chave fiscal</th><th>Ações</th></tr></thead><tbody id="lista-documentos"><tr><td colspan="5" class="empty">Escolha uma viagem para consultar os documentos.</td></tr></tbody></table></div>
     </section>
     <div class="bottom-grid">
       <section id="clientes" class="card"><div class="section-heading"><div><p class="eyebrow">CADASTRO</p><h2>Clientes</h2></div></div><ul id="lista-clientes" class="client-list"><li class="empty">Carregando clientes…</li></ul></section>
@@ -57,5 +58,14 @@
     </div>
     <footer>RotaBrasil <span>·</span> Painel de apoio aos testes da API <span>·</span> Sem disparo de e-mail</footer>
   </main>
+  <dialog id="confirmar-exclusao" aria-labelledby="titulo-exclusao" aria-describedby="descricao-exclusao">
+    <form id="form-exclusao">
+      <p class="eyebrow">CONFIRMAR EXCLUSÃO</p>
+      <h2 id="titulo-exclusao">Excluir cliente?</h2>
+      <p id="descricao-exclusao"></p>
+      <p class="section-help" id="regra-exclusao">Cadastros com vínculos serão preservados.</p>
+      <div class="dialog-actions"><button id="cancelar-exclusao" class="button secondary" type="button" autofocus>Cancelar</button><button id="executar-exclusao" class="button danger" type="submit">Excluir cadastro</button></div>
+    </form>
+  </dialog>
 </body>
 </html>

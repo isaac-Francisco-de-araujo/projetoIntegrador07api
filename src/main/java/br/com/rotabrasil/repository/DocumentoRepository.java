@@ -24,4 +24,7 @@ public interface DocumentoRepository extends JpaRepository<Documento, Long> {
 
     List<Documento> findByTipoIgnoreCaseAndChaveAcessoIsNull(String tipo);
     boolean existsByViagemId(Long viagemId);
+    List<Documento> findByArquivadoEmIsNull();
+    List<Documento> findByViagemIdAndArquivadoEmIsNull(Long viagemId);
+    List<Documento> findByViagemIdAndArquivadoEmIsNotNull(Long viagemId);
 }

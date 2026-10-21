@@ -2,6 +2,7 @@ package br.com.rotabrasil.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "documentos")
@@ -16,6 +17,7 @@ public class Documento {
     // XMLs legados só são preenchidos por inventário e migração explícita.
     @Column(name = "chave_acesso", length = 44) private String chaveAcesso;
     @Column(length = 64) private String sha256;
+    @Column(name = "arquivado_em") private OffsetDateTime arquivadoEm;
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "viagem_id", nullable = false) private Viagem viagem;
 }

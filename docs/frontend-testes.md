@@ -16,7 +16,7 @@ abrir CORS ou alterar os contratos da API.
 - Layout adaptado para desktop e celular, controles rotulados e avisos acessíveis.
 
 O painel não cria dados fictícios ao abrir, não cadastra contatos implicitamente,
-não oferece exclusão ou associação de PDFs e não possui botão de envio real.
+não oferece exclusão definitiva de documentos ou associação de PDFs e não possui botão de envio real.
 A prévia usa `POST /api/viagens/{id}/previa-email` e não verifica os anexos nem
 cria histórico. A CLI de teste Gmail permanece um fluxo separado.
 
@@ -50,10 +50,12 @@ Nenhum documento fiscal real é necessário para esse teste.
 O painel é de apoio aos testes locais, sem autenticação e sem pretensão de ser
 o frontend final. Não implementa cadastro/edição manual de cliente/viagem,
 download de arquivo, associação de anexos ou envio operacional de e-mail.
+Permite excluir clientes/viagens sem vínculos e arquivar/restaurar documentos,
+conforme [as regras de exclusão e migração V5](exclusoes-arquivamento.md).
 
 ## Verificação
 
-Comando do backend: `/workspace/tools/rotabrasil-mvn -B clean test` — **190 testes
+Comando do backend: `/workspace/tools/rotabrasil-mvn -B clean test` — **208 testes
 aprovados, zero falhas, erros ou ignorados**. Empacotamento também aprovado.
 
 O teste de navegador está em `scripts/testar-painel.py`. É uma ferramenta
@@ -62,10 +64,10 @@ o painel não depende deles para funcionar. Na nuvem, com ferramentas instaladas
 
 ```sh
 python3 scripts/testar-painel.py \
-  --jar /workspace/rotabrasil-dev/frontend/app.jar \
+  --jar /workspace/rotabrasil-dev/app.jar \
   --java /workspace/tools/jdk-25.0.5/bin/java \
   --chromium /usr/bin/chromium \
-  --saida /workspace/rotabrasil-dev/frontend
+  --saida /workspace/rotabrasil-dev/exclusoes
 ```
 
 O script inicia seu próprio servidor em porta aleatória, H2 e diretório
@@ -73,15 +75,16 @@ exclusivamente temporários, e os encerra ao terminar. A opção `--saida` receb
 apenas relatórios e capturas. A variável `--jar` deve apontar para um pacote
 recém-compilado; não reutilize artefatos históricos de `target/`.
 
-**10 verificações de navegador aprovadas:** estado vazio, importação completa,
+**17 verificações de navegador aprovadas:** estado vazio, importação completa,
 prévia sem envio/histórico, duplicidade com outro nome, busca, XML inválido,
 recarregamento, exibição segura de HTML malicioso como texto, recuperação após
 falha de consulta e layout móvel sem rolagem horizontal da página. Não houve
 erro JavaScript. São verificações adicionais, não estão incluídas nos 190 casos
-JUnit.
+JUnit. O fluxo também cobre confirmação/cancelamento, exclusões protegidas,
+arquivamento com arquivo preservado e restauração.
 
 Capturas `desktop.png` e `mobile.png`, `resultado-ui.json`, relatórios JUnit e
-logs ficam fora do checkout em `/workspace/rotabrasil-dev/frontend`.
+logs ficam fora do checkout em `/workspace/rotabrasil-dev/exclusoes`.
 Banco operacional e XMLs reais têm hashes comparados antes/depois. Nenhum teste
 abre o banco operacional, usa documento real ou envia e-mail. O processo usado
 para a verificação é encerrado ao final; é necessário iniciar a aplicação para

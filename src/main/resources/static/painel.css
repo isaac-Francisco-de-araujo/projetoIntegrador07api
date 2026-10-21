@@ -756,3 +756,18 @@ footer span {
     scroll-behavior:auto
   }
 }
+
+.client-info { flex: 1; min-width: 0; }
+.delete-action { border: 1px solid #e4c8c1; border-radius: 5px; background: #fff; color: #963d2b; padding: 7px 10px; font-size: 11px; cursor: pointer; white-space: nowrap; }
+.delete-action:hover { background: #fff1ed; }
+.danger { background: #a03c2b; color: #fff; }
+.danger:hover:enabled { background: #7d2c1f; }
+dialog { border: 1px solid var(--line); border-radius: 12px; max-width: 460px; width: calc(100% - 36px); padding: 26px; color: var(--ink); box-shadow: 0 20px 70px #142b3a30; }
+dialog::backdrop { background: #122c3a80; }
+#descricao-exclusao { overflow-wrap: anywhere; }
+.dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; margin-top: 24px; }
+.row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+
+.archive-filter { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; font-size: 12px; }
+.archive-filter input { accent-color: var(--green); }
+.notice { position: sticky; top: 12px; z-index: 10; box-shadow: 0 5px 18px #172b3910; }

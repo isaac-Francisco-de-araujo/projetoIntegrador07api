@@ -199,8 +199,8 @@ class ContratoApiHttpTest {
         assertThat(total("envios")).isEqualTo(1);assertThat(total("clientes")).isEqualTo(2);assertThat(total("viagens")).isEqualTo(1);
     }
     @Test void metodoInvalidoPreserva405EHeaderAllow() {
-        var resposta=json(HttpMethod.DELETE,"/api/viagens/1",null);erro(resposta,HttpStatus.METHOD_NOT_ALLOWED);
-        assertThat(resposta.getHeaders().getAllow()).contains(HttpMethod.GET,HttpMethod.PUT);bancoVazio();
+        var resposta=json(HttpMethod.PATCH,"/api/viagens/1",null);erro(resposta,HttpStatus.METHOD_NOT_ALLOWED);
+        assertThat(resposta.getHeaders().getAllow()).contains(HttpMethod.GET,HttpMethod.PUT,HttpMethod.DELETE);bancoVazio();
     }
     @Test void contentTypeInvalidoRetorna415() {
         var headers=new HttpHeaders();headers.setContentType(MediaType.TEXT_PLAIN);
