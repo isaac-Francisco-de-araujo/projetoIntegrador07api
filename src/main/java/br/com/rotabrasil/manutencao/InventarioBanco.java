@@ -24,9 +24,15 @@ public final class InventarioBanco {
     public Relatorio analisar(Connection conexao) throws Exception {
         var achados = new ArrayList<Achado>();
         var dados = new LinkedHashMap<String, List<Map<String, String>>>();
-        for (String tabela : List.of("clientes", "viagens", "documentos", "envios")) {
+        for (String tabela : List.of("clientes", "viagens", "documentos", "envios", "pacotes", "anexos", "pacote_documentos", "anexo_viagens")) {
+            if (List.of("pacotes", "anexos", "pacote_documentos", "anexo_viagens").contains(tabela)) {
+                try (var rs = conexao.getMetaData().getTables(null,"PUBLIC",tabela.toUpperCase(Locale.ROOT),new String[]{"TABLE"})) {
+                    if (!rs.next()) continue;
+                }
+            }
+            String ordem = tabela.equals("pacote_documentos") ? "pacote_id, documento_id" : tabela.equals("anexo_viagens") ? "anexo_id, viagem_id" : "id";
             var linhas = new ArrayList<Map<String, String>>();
-            try (var consulta = conexao.createStatement(); var rs = consulta.executeQuery("SELECT * FROM " + tabela + " ORDER BY id")) {
+            try (var consulta = conexao.createStatement(); var rs = consulta.executeQuery("SELECT * FROM " + tabela + " ORDER BY " + ordem)) {
                 while (rs.next()) {
                     var linha = new TreeMap<String, String>();
                     for (int i = 1; i <= rs.getMetaData().getColumnCount(); i++) {
@@ -92,6 +98,38 @@ public final class InventarioBanco {
             } catch (Exception ex) {
                 achados.add(new Achado("ARQUIVO_NAO_IDENTIFICAVEL", id));
             }
+        }
+        var pdfs = indexar(dados.getOrDefault("anexos", List.of()));
+        var pacotes = indexar(dados.getOrDefault("pacotes", List.of()));
+        var docs = indexar(dados.get("documentos"));
+        var destinosPdf = new HashMap<String, Set<String>>();
+        for (var vinculo : dados.getOrDefault("anexo_viagens", List.of())) {
+            if (!pdfs.containsKey(vinculo.get("anexo_id")) || !viagens.containsKey(vinculo.get("viagem_id")))
+                achados.add(new Achado("ANEXO_VINCULO_INVALIDO", null));
+            destinosPdf.computeIfAbsent(vinculo.get("anexo_id"), k -> new HashSet<>()).add(vinculo.get("viagem_id"));
+        }
+        var viagensPacote = new HashMap<String, Set<String>>();
+        for (var vinculo : dados.getOrDefault("pacote_documentos", List.of())) {
+            if (!pacotes.containsKey(vinculo.get("pacote_id")) || !docs.containsKey(vinculo.get("documento_id")))
+                achados.add(new Achado("PACOTE_VINCULO_INVALIDO", null));
+            else viagensPacote.computeIfAbsent(vinculo.get("pacote_id"), k -> new HashSet<>()).add(docs.get(vinculo.get("documento_id")).get("viagem_id"));
+        }
+        for (var pdf : pdfs.values()) {
+            long id = id(pdf);
+            var destinos = destinosPdf.getOrDefault(pdf.get("id"), Set.of());
+            if (!pacotes.containsKey(pdf.get("pacote_id")) || destinos.isEmpty() || !viagensPacote.getOrDefault(pdf.get("pacote_id"),Set.of()).containsAll(destinos) ||
+                    ("VIAGEM".equals(pdf.get("finalidade")) && destinos.size()!=1))
+                achados.add(new Achado("ANEXO_RELACIONAMENTO_INVALIDO",id));
+            try {
+                Path caminho=Path.of(Objects.requireNonNull(pdf.get("caminho"))).toAbsolutePath().normalize();
+                if (!caminho.startsWith(raiz)) {achados.add(new Achado("CAMINHO_FORA_DA_RAIZ",id));continue;}
+                usados.add(caminho);
+                if (!Files.isRegularFile(caminho,LinkOption.NOFOLLOW_LINKS) || !caminho.toRealPath().startsWith(raiz.toRealPath())) {
+                    achados.add(new Achado("ANEXO_SEM_ARQUIVO",id));continue;
+                }
+                String hash=hashArquivo(caminho);xmlLidos.put(caminho,hash);
+                if (!hash.equals(pdf.get("sha256"))) achados.add(new Achado("ANEXO_CONTEUDO_DIVERGENTE",id));
+            } catch (Exception ex) {achados.add(new Achado("ANEXO_ARQUIVO_INVALIDO",id));}
         }
         var arquivos = new ArrayList<Arquivo>();
         if (Files.exists(raiz, LinkOption.NOFOLLOW_LINKS)) {

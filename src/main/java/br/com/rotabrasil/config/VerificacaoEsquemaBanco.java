@@ -25,7 +25,7 @@ public class VerificacaoEsquemaBanco implements InitializingBean {
                 if (!colunas.equals(List.of(coluna))) throw new IllegalStateException("Restrição de unicidade divergente");
             }
         }
-        if (jdbc.queryForObject("SELECT COUNT(*) FROM \"flyway_schema_history\" WHERE \"version\"='5' AND \"success\"=TRUE", Integer.class) != 1) {
+        if (jdbc.queryForObject("SELECT COUNT(*) FROM \"flyway_schema_history\" WHERE \"version\"='6' AND \"success\"=TRUE", Integer.class) != 1) {
             throw new IllegalStateException("Histórico de migrações incompleto");
         }
         if (jdbc.queryForObject("SELECT COUNT(*) FROM controle_importacao WHERE id=1", Integer.class) != 1) {

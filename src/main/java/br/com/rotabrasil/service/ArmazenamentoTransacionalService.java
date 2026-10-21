@@ -19,7 +19,16 @@ public class ArmazenamentoTransacionalService {
                 !TransactionSynchronizationManager.isSynchronizationActive()) {
             throw new IllegalStateException("Armazenamento do importador exige transação ativa");
         }
-        var operacao = arquivos.prepararXml(conteudo, numero, chave);
+        return registrar(arquivos.prepararXml(conteudo, numero, chave));
+    }
+
+    public Path prepararPdf(byte[] conteudo, String numero, String token) {
+        if (!TransactionSynchronizationManager.isActualTransactionActive() || !TransactionSynchronizationManager.isSynchronizationActive())
+            throw new IllegalStateException("Armazenamento exige transação ativa");
+        return registrar(arquivos.prepararPdf(conteudo, numero, token));
+    }
+
+    private Path registrar(OperacaoArquivo operacao) {
         try {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override

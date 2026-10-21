@@ -18,6 +18,7 @@ public class EmailService {
     private final ViagemService viagens;
     private final DocumentoService documentos;
     private final EnvioRepository envios;
+    private final AnexoService anexos;
 
     public PreviaEmailResponse prepararPrevia(Long viagemId, PreviaEmailRequest pedido) {
         viagens.buscarViagem(viagemId);
@@ -29,7 +30,7 @@ public class EmailService {
             return DocumentoResponse.de(documento);
         }).toList();
         // Metadados para conferência: não lê anexos, não resolve destinatário e não altera histórico.
-        return new PreviaEmailResponse(viagemId, pedido.destinatario(), false, selecionados);
+        return new PreviaEmailResponse(viagemId, pedido.destinatario(), false, selecionados, pedido.anexoIds().stream().map(id -> anexos.conferir(id, viagemId)).toList());
     }
 
     public List<EnvioResponse> listarHistorico(Long viagemId) {

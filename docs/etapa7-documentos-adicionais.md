@@ -1,5 +1,9 @@
 # Etapa 7 — Preparação para documentos adicionais
 
+Atualização: o [fluxo ZIP assistido](pacotes-assistidos.md) acrescenta PDFs/faturas
+compartilhados, seleção de PDFs na prévia e migração V6. Consulte esse contrato
+para o comportamento atual; o envio operacional continua desativado.
+
 Uma viagem mantém uma coleção de documentos, sem quantidade fixa nem campos
 separados como XML1/PDF1. Cada documento tem seu próprio ID e aponta para uma
 viagem por `viagem_id`. O esquema V4 já comporta essa relação; não foi necessária

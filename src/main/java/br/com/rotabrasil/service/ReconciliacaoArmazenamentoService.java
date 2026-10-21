@@ -22,6 +22,8 @@ import java.util.List;
 public class ReconciliacaoArmazenamentoService {
     private final OrganizadorArquivosService arquivos;
     private final DocumentoRepository documentos;
+    private final br.com.rotabrasil.repository.AnexoRepository anexos;
+    private record Registro(Long id, String hash, String caminho, String numero, boolean tipoValido) {}
 
     public enum Estado {
         EM_ANDAMENTO, PREPARADO_SEM_REGISTRO, PUBLICADO_SEM_REGISTRO,
@@ -71,8 +73,15 @@ public class ReconciliacaoArmazenamentoService {
 
     private Pendencia conferir(OperacaoArquivo operacao, boolean recuperar) throws IOException {
         // Mantém o registro confirmado protegido contra exclusão durante a recuperação.
-        var registros = recuperar ? documentos.buscarParaReconciliacao(operacao.chave)
-                : documentos.findAllByChaveAcesso(operacao.chave);
+        java.util.List<Registro> registros;
+        if (operacao.chave.startsWith("pdf-")) {
+            String token = operacao.chave.substring(4);
+            registros = (recuperar ? anexos.buscarParaReconciliacao(token) : anexos.findByToken(token))
+                .stream().map(a -> new Registro(a.getId(), a.getSha256(), a.getCaminho(), a.getNumeroArmazenamento(), true)).toList();
+        } else {
+            registros = (recuperar ? documentos.buscarParaReconciliacao(operacao.chave) : documentos.findAllByChaveAcesso(operacao.chave))
+                .stream().map(d -> new Registro(d.getId(), d.getSha256(), d.getCaminho(), d.getViagem() == null ? null : d.getViagem().getNumero(), "XML".equalsIgnoreCase(d.getTipo()))).toList();
+        }
         if (registros.size() > 1) return pendencia(operacao, Estado.REVISAO_NECESSARIA, null);
         boolean temporarioExiste = Files.exists(operacao.temporario, LinkOption.NOFOLLOW_LINKS);
         boolean temporarioValido = temporarioExiste && arquivos.confere(operacao.temporario, operacao.hash);
@@ -87,31 +96,29 @@ public class ReconciliacaoArmazenamentoService {
             return pendencia(operacao, Estado.REVISAO_NECESSARIA, null);
         }
 
-        Documento documento = registros.getFirst();
+        Registro documento = registros.getFirst();
         if (!compativel(documento, operacao) || (temporarioExiste && !temporarioValido)) {
-            return pendencia(operacao, Estado.REVISAO_NECESSARIA, documento.getId());
+            return pendencia(operacao, Estado.REVISAO_NECESSARIA, documento.id());
         }
         if (destinoExiste) {
             if (!arquivos.confere(operacao.destino, operacao.hash)) {
-                return pendencia(operacao, Estado.REVISAO_NECESSARIA, documento.getId());
+                return pendencia(operacao, Estado.REVISAO_NECESSARIA, documento.id());
             }
         } else if (!temporarioValido) {
-            return pendencia(operacao, Estado.REVISAO_NECESSARIA, documento.getId());
+            return pendencia(operacao, Estado.REVISAO_NECESSARIA, documento.id());
         }
         if (!recuperar) {
-            return pendencia(operacao, destinoExiste ? Estado.COMMIT_CONFIRMADO : Estado.REGISTRO_SEM_ARQUIVO, documento.getId());
+            return pendencia(operacao, destinoExiste ? Estado.COMMIT_CONFIRMADO : Estado.REGISTRO_SEM_ARQUIVO, documento.id());
         }
         // Nunca sobrescreve o destino: a recuperação usa a mesma publicação exclusiva.
         if (!destinoExiste) arquivos.publicar(operacao);
         arquivos.confirmar(operacao);
-        return pendencia(operacao, Estado.RECUPERADA, documento.getId());
+        return pendencia(operacao, Estado.RECUPERADA, documento.id());
     }
 
-    private boolean compativel(Documento documento, OperacaoArquivo operacao) {
-        if (!operacao.hash.equals(documento.getSha256()) || !"XML".equalsIgnoreCase(documento.getTipo()) ||
-                documento.getCaminho() == null || documento.getViagem() == null ||
-                !operacao.numero.equals(documento.getViagem().getNumero())) return false;
-        return Path.of(documento.getCaminho()).toAbsolutePath().normalize().equals(operacao.destino);
+    private boolean compativel(Registro documento, OperacaoArquivo operacao) {
+        return documento.tipoValido() && operacao.hash.equals(documento.hash()) && operacao.numero.equals(documento.numero()) &&
+                documento.caminho() != null && Path.of(documento.caminho()).toAbsolutePath().normalize().equals(operacao.destino);
     }
 
     private Pendencia pendencia(OperacaoArquivo operacao, Estado estado, Long documento) {

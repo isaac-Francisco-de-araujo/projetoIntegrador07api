@@ -35,6 +35,11 @@ public class OrganizadorArquivosService {
         return preparar(conteudo, numero, chave, chave + ".xml");
     }
 
+    public OperacaoArquivo prepararPdf(byte[] conteudo, String numero, String token) {
+        if (!UUID.fromString(token).toString().equals(token)) throw new IllegalArgumentException("Token inválido");
+        return preparar(conteudo, numero, "pdf-" + token, "anexo-" + token + ".pdf");
+    }
+
     private OperacaoArquivo preparar(byte[] conteudo, String numero, String chave, String nome) {
         validarNumero(numero);
         OperacaoArquivo operacao = null;
@@ -51,7 +56,7 @@ public class OrganizadorArquivosService {
             operacao.travar(canal, null);
             operacao.travar(canal, canal.lock());
             Properties metadados = new Properties();
-            metadados.setProperty("versao", "1");
+            metadados.setProperty("versao", chave != null && chave.startsWith("pdf-") ? "2" : "1");
             metadados.setProperty("numero", numero);
             metadados.setProperty("chave", chave == null ? "" : chave);
             metadados.setProperty("nome", nome);
@@ -199,12 +204,12 @@ public class OrganizadorArquivosService {
             String numero = metadados.getProperty("numero", "");
             String chave = metadados.getProperty("chave", "");
             String hash = metadados.getProperty("sha256", "");
-            if (!"1".equals(metadados.getProperty("versao")) || !numero.matches("[0-9]{1,9}") ||
-                    !chave.matches("[0-9]{44}") || !hash.matches("[0-9a-f]{64}") ||
-                    !(chave + ".xml").equals(metadados.getProperty("nome"))) {
-                throw new IOException("Metadados inválidos");
-            }
-            var operacao = new OperacaoArquivo(diretorio, destino(numero, chave + ".xml"), numero, chave, hash);
+            boolean xml = "1".equals(metadados.getProperty("versao")) && chave.matches("[0-9]{44}");
+            boolean pdf = "2".equals(metadados.getProperty("versao")) && chave.matches("pdf-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}");
+            String nome = pdf ? "anexo-" + chave.substring(4) + ".pdf" : chave + ".xml";
+            if ((!xml && !pdf) || !numero.matches("[0-9]{1,9}") || !hash.matches("[0-9a-f]{64}") ||
+                    !nome.equals(metadados.getProperty("nome"))) throw new IOException("Metadados inválidos");
+            var operacao = new OperacaoArquivo(diretorio, destino(numero, nome), numero, chave, hash);
             operacao.travar(canal, trava);
             transferida = true;
             return Optional.of(operacao);

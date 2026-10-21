@@ -1,5 +1,9 @@
 # Painel web para testes da API
 
+Atualização: o [fluxo ZIP assistido](pacotes-assistidos.md) acrescenta PDFs/faturas
+compartilhados, seleção de PDFs na prévia e migração V6. Consulte esse contrato
+para o comportamento atual; o envio operacional continua desativado.
+
 Frontend estático em HTML, CSS e JavaScript, servido pelo próprio Spring Boot
 na rota `/`. Não exige React, Node, npm, CDN ou um segundo servidor para usar.
 Os pedidos usam os endpoints existentes da mesma origem; não foi necessário

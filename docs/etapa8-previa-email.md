@@ -1,5 +1,9 @@
 # Etapa 8 — Preparação de e-mail sem envio real
 
+Atualização: o [fluxo ZIP assistido](pacotes-assistidos.md) acrescenta PDFs/faturas
+compartilhados, seleção de PDFs na prévia e migração V6. Consulte esse contrato
+para o comportamento atual; o envio operacional continua desativado.
+
 Esta entrega prepara uma prévia de metadados e a consulta de histórico. **Não
 implementa entrega de e-mail.** Destinatário operacional, SMTP, seleção de
 anexos, momento de disparo e políticas de falha/reenvio continuam pendentes de

@@ -2,6 +2,12 @@
 
 Backend inicial para automatizar o recebimento, organização e histórico de documentos de viagens de caminhão.
 
+O painel já oferece [importação assistida de ZIP](docs/pacotes-assistidos.md):
+conferência dos CT-es, associação manual de PDFs/faturas a uma ou várias viagens,
+arquivamento/restauração e prévia com destinatário e anexos explícitos. O envio
+operacional de e-mail continua desativado. Esta versão exige migrações até **V6**;
+para testar, use banco novo separado conforme a documentação.
+
 ## Tecnologias
 
 - Java 25

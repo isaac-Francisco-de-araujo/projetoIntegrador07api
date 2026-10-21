@@ -185,7 +185,7 @@ class MigracaoEBackupTest {
         }
     }
 
-    @Test void migraV4ParaV5ComBackupSemAlterarDadosOuArquivos() throws Exception {
+    @Test void migraV4ParaV6ComBackupSemAlterarDadosOuArquivos() throws Exception {
         try (var conexao = legado()) {
             criarBackup(conexao);
             var flyway = org.flywaydb.core.Flyway.configure()
@@ -202,6 +202,8 @@ class MigracaoEBackupTest {
             for(var campo:antes.entrySet())assertThat(escalar(conexao,"SELECT "+campo.getKey()+" FROM documentos WHERE id=103")).isEqualTo(campo.getValue());
             assertThat(escalar(conexao,"SELECT arquivado_em FROM documentos WHERE id=103")).isNull();
             assertThat(escalar(conexao,"SELECT COUNT(*) FROM \"flyway_schema_history\" WHERE \"version\"='5' AND \"success\"=TRUE")).isEqualTo("1");
+            assertThat(escalar(conexao,"SELECT COUNT(*) FROM \"flyway_schema_history\" WHERE \"version\"='6' AND \"success\"=TRUE")).isEqualTo("1");
+            assertThat(escalar(conexao,"SELECT COUNT(*) FROM anexos")).isEqualTo("0");
             assertThat(Files.readString(raiz().resolve("legado.xml"))).isEqualTo(CteFixture.xml());
         }
     }

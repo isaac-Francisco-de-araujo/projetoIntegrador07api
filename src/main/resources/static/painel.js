@@ -1,7 +1,7 @@
 'use strict';
 
 const $ = id => document.getElementById(id);
-const state = { clientes: [], viagens: [], documentos: [], daViagem: [], viagem: '', selecionados: new Set(), carregando: false, previaOcupada: false };
+const state = { clientes: [], viagens: [], documentos: [], daViagem: [], viagem: '', selecionados: new Set(), anexosSelecionados: new Set(), anexos: [], carregando: false, previaOcupada: false };
 let consulta = 0;
 let atualizacao = 0;
 let previa = 0;
@@ -93,8 +93,8 @@ function viagens() {
 function invalidarPrevia() { previa++; $('resultado-previa').hidden = true; $('resultado-previa').replaceChildren(); }
 
 function atualizarSelecao() {
-  $('gerar-previa').disabled = state.previaOcupada || state.carregando || !state.viagem || !state.selecionados.size;
-  $('selecao-info').textContent = state.selecionados.size ? `${state.selecionados.size} documento(s) selecionado(s) para conferência.` : 'Escolha uma viagem e selecione documentos.';
+  $('gerar-previa').disabled = state.previaOcupada || state.carregando || !state.viagem || !(state.selecionados.size + state.anexosSelecionados.size);
+  $('selecao-info').textContent = (state.selecionados.size + state.anexosSelecionados.size) ? `${state.selecionados.size + state.anexosSelecionados.size} documento(s) selecionado(s) para conferência.` : 'Escolha uma viagem e selecione documentos.';
 }
 
 function documentos() {
@@ -134,14 +134,14 @@ function historico(items) {
 
 async function carregarDocumentos(id) {
   const version = ++consulta;
-  state.viagem = id; state.selecionados.clear(); state.daViagem = []; invalidarPrevia();
+  state.viagem = id; state.selecionados.clear(); state.anexosSelecionados.clear(); state.anexos = []; renderizarAnexos(); state.daViagem = []; invalidarPrevia();
   state.carregando = Boolean(id); atualizarSelecao();
   if (!id) { vazio($('lista-documentos'), 5, 'Escolha uma viagem para consultar os documentos.'); $('historico').textContent = 'Escolha uma viagem para consultar.'; return; }
   vazio($('lista-documentos'), 5, 'Carregando documentos…'); $('historico').textContent = 'Carregando histórico…';
   try {
-    const [docs, history] = await Promise.all([api(`/api/viagens/${encodeURIComponent(id)}/documentos${$('mostrar-arquivados').checked ? '/arquivados' : ''}`), api(`/api/viagens/${encodeURIComponent(id)}/envios`)]);
+    const [docs, history, anexos] = await Promise.all([api(`/api/viagens/${encodeURIComponent(id)}/documentos${$('mostrar-arquivados').checked ? '/arquivados' : ''}`), api(`/api/viagens/${encodeURIComponent(id)}/envios`), api(`/api/viagens/${encodeURIComponent(id)}/anexos?arquivados=${$('mostrar-arquivados').checked}`)]);
     if (version !== consulta) return;
-    state.daViagem = docs; documentos(); historico(history);
+    state.daViagem = docs; state.anexos = anexos; documentos(); renderizarAnexos(); historico(history);
   } catch (error) {
     if (version !== consulta) return;
     vazio($('lista-documentos'), 5, 'Não foi possível carregar os documentos. Use Atualizar dados para tentar novamente.');
@@ -171,11 +171,12 @@ async function atualizar(viagemId = null) {
 function confirmarExclusao(tipo, id, nome, origem) {
   if (excluindo) return;
   exclusao = { tipo, id, origem };
-  $('titulo-exclusao').textContent = tipo === 'documento' ? 'Arquivar documento?' : `Excluir ${tipo}?`;
-  $('executar-exclusao').textContent = tipo === 'documento' ? 'Arquivar documento' : 'Excluir cadastro';
+  $('titulo-exclusao').textContent = (tipo === 'documento' || tipo === 'anexo') ? 'Arquivar documento?' : `Excluir ${tipo}?`;
+  $('executar-exclusao').textContent = (tipo === 'documento' || tipo === 'anexo') ? 'Arquivar documento' : 'Excluir cadastro';
   $('descricao-exclusao').textContent = `Você está excluindo ${tipo === 'cliente' ? 'o cliente' : 'a viagem'} “${nome}”. Essa ação remove o cadastro.`;
-  if (tipo === 'documento') $('descricao-exclusao').textContent = `Arquivar “${nome}”? O XML/PDF será preservado e poderá ser restaurado.`;
-  $('regra-exclusao').textContent = tipo === 'documento' ? 'O documento sai da lista ativa e da prévia de e-mail. Não haverá exclusão do arquivo.' : tipo === 'cliente' ? 'Clientes com viagens ou histórico de envio não podem ser excluídos.' : 'Viagens com documentos ou histórico de envio não podem ser excluídas. O cliente será preservado.';
+  if ((tipo === 'documento' || tipo === 'anexo')) $('descricao-exclusao').textContent = `Arquivar “${nome}”? O XML/PDF será preservado e poderá ser restaurado.`;
+  if (tipo === 'anexo') $('descricao-exclusao').textContent = `Arquivar “${nome}” em todas as viagens vinculadas? O PDF será preservado e poderá ser restaurado.`;
+  $('regra-exclusao').textContent = (tipo === 'documento' || tipo === 'anexo') ? 'O documento sai da lista ativa e da prévia de e-mail. Não haverá exclusão do arquivo.' : tipo === 'cliente' ? 'Clientes com viagens ou histórico de envio não podem ser excluídos.' : 'Viagens com documentos ou histórico de envio não podem ser excluídas. O cliente será preservado.';
   $('confirmar-exclusao').showModal();
 }
 
@@ -198,10 +199,10 @@ $('form-exclusao').addEventListener('submit', async event => {
   $('executar-exclusao').disabled = true; $('cancelar-exclusao').disabled = true;
   $('executar-exclusao').textContent = 'Excluindo…';
   try {
-    if (pedido.tipo === 'documento') invalidarPrevia();
-    const rota = { cliente: 'clientes', viagem: 'viagens', documento: 'documentos' }[pedido.tipo];
+    if ((pedido.tipo === 'documento' || pedido.tipo === 'anexo')) invalidarPrevia();
+    const rota = { cliente: 'clientes', viagem: 'viagens', documento: 'documentos', anexo: 'anexos' }[pedido.tipo];
     await api(`/api/${rota}/${encodeURIComponent(pedido.id)}`, { method: 'DELETE' });
-    avisar(pedido.tipo === 'documento' ? 'Documento arquivado. O arquivo foi preservado e pode ser restaurado.' : `${pedido.tipo === 'cliente' ? 'Cliente excluído' : 'Viagem excluída'} com sucesso.`);
+    avisar((pedido.tipo === 'documento' || pedido.tipo === 'anexo') ? 'Documento arquivado. O arquivo foi preservado e pode ser restaurado.' : `${pedido.tipo === 'cliente' ? 'Cliente excluído' : 'Viagem excluída'} com sucesso.`);
     try { await atualizar(); }
     catch { avisar('Exclusão concluída, mas a atualização falhou. Use Atualizar dados antes de continuar.', true); }
   } catch (error) { avisar(error.message, true); }
@@ -251,7 +252,7 @@ $('form-importacao').addEventListener('submit', async event => {
 
 $('form-email').addEventListener('submit', async event => {
   event.preventDefault();
-  if (state.previaOcupada || state.carregando || !state.viagem || !state.selecionados.size) return;
+  if (state.previaOcupada || state.carregando || !state.viagem || !(state.selecionados.size + state.anexosSelecionados.size)) return;
   const version = ++previa;
   const trip = state.viagem;
   const ids = [...state.selecionados];
@@ -260,15 +261,85 @@ $('form-email').addEventListener('submit', async event => {
   try {
     const result = await api(`/api/viagens/${encodeURIComponent(trip)}/previa-email`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ destinatario: $('destinatario').value.trim(), documentoIds: ids })
+      body: JSON.stringify({ destinatario: $('destinatario').value.trim(), documentoIds: ids, anexoIds: [...state.anexosSelecionados] })
     });
     if (version !== previa || trip !== state.viagem) return;
     const target = $('resultado-previa');
-    const list = element('ul'); for (const doc of result.documentos) list.append(element('li', `${doc.nomeArquivo} · ${doc.tipo} · #${doc.id}`));
+    const list = element('ul'); for (const doc of [...result.documentos, ...(result.anexos || [])]) list.append(element('li', `${doc.nomeArquivo} · ${doc.tipo} · #${doc.id}`));
     target.replaceChildren(element('strong', 'Prévia gerada. Nenhum e-mail enviado.'), element('p', `Destinatário: ${result.destinatario}`), list, element('p', 'Somente metadados: os anexos não foram verificados.'));
     target.hidden = false;
   } catch (error) { if (version === previa) avisar(error.message, true); }
   finally { state.previaOcupada = false; $('gerar-previa').textContent = 'Gerar prévia →'; atualizarSelecao(); }
+});
+
+function renderizarAnexos() {
+  const list = $('lista-anexos'); list.replaceChildren();
+  if (!state.anexos.length) { list.append(element('li', state.viagem ? 'Nenhum PDF nesta consulta.' : 'Escolha uma viagem.', 'empty')); return; }
+  for (const anexo of state.anexos) {
+    const item=element('li'); const label=element('label');
+    if (!anexo.arquivadoEm) {
+      const box=element('input');box.type='checkbox';box.setAttribute('aria-label',`Selecionar PDF ${anexo.nomeArquivo}`);
+      box.addEventListener('change',()=>{if(box.checked)state.anexosSelecionados.add(anexo.id);else state.anexosSelecionados.delete(anexo.id);invalidarPrevia();atualizarSelecao();});label.append(box);
+    }
+    label.append(element('span', `${anexo.nomeArquivo} · ${anexo.finalidade === 'FATURA' ? 'Fatura' : 'Viagem'} · ${anexo.viagemIds.length} viagem(ns)`));
+    const button=element('button',anexo.arquivadoEm?'Restaurar':'Arquivar','row-action');button.type='button';
+    button.setAttribute('aria-label',`${anexo.arquivadoEm?'Restaurar':'Arquivar'} PDF ${anexo.nomeArquivo}`);
+    button.addEventListener('click',async()=>{
+      if(!anexo.arquivadoEm){confirmarExclusao('anexo',anexo.id,anexo.nomeArquivo,button);return;}
+      button.disabled=true;try{await api(`/api/anexos/${anexo.id}/restaurar`,{method:'POST'});await atualizar();avisar('PDF restaurado em todas as viagens vinculadas.');}catch(error){avisar(error.message,true);}finally{button.disabled=false;}
+    });item.append(label,button);list.append(item);
+  }
+}
+
+let pacoteConferido = null;
+let pacoteOcupado = false;
+function limparPacote() {pacoteConferido=null;$('conferencia-zip').hidden=true;$('confirmar-zip').disabled=true;}
+$('arquivo-zip').addEventListener('change',limparPacote);
+function vinculosPacote() {
+  if(!pacoteConferido)return null;
+  const vinculos=[];
+  for(const pdf of pacoteConferido.arquivos.filter(a=>a.tipo==='PDF')) {
+    const row=$('vinculo-'+pdf.id);const finalidade=row.querySelector('select').value;
+    const xmlIds=[...row.querySelectorAll('input:checked')].map(box=>box.value);
+    if(!finalidade||!xmlIds.length||(finalidade==='VIAGEM'&&xmlIds.length!==1))return null;
+    vinculos.push({arquivoId:pdf.id,finalidade,xmlIds});
+  }
+  return vinculos;
+}
+$('form-pacote').addEventListener('submit',async event=>{
+  event.preventDefault();if(pacoteOcupado)return;
+  const file=$('arquivo-zip').files[0];limparPacote();
+  if(!file||!file.name.toLowerCase().endsWith('.zip')||!file.size||file.size>20*1024*1024){avisar('Selecione um ZIP de até 20 MB.',true);return;}
+  pacoteOcupado=true;$('inspecionar-zip').disabled=true;$('arquivo-zip').disabled=true;
+  try {
+    const form=new FormData();form.append('arquivo',file);
+    const result=await api('/api/pacotes/inspecao',{method:'POST',body:form});pacoteConferido={...result,file};
+    const xmls=result.arquivos.filter(a=>a.tipo==='XML'),pdfs=result.arquivos.filter(a=>a.tipo==='PDF');
+    $('resumo-zip').textContent=`${xmls.length} viagem(ns) e ${pdfs.length} PDF(s). A conferência ainda não gravou dados.`;
+    $('xmls-zip').replaceChildren(...xmls.map(xml=>element('li',`CT-e ${xml.numero} · ${xml.cliente} · ${xml.nomeArquivo}`)));
+    $('pdfs-zip').replaceChildren();
+    for(const pdf of pdfs) {
+      const row=element('fieldset');row.id='vinculo-'+pdf.id;row.append(element('legend',pdf.nomeArquivo));
+      const label=element('label','Finalidade '),select=element('select');select.setAttribute('aria-label',`Finalidade de ${pdf.nomeArquivo}`);
+      select.add(new Option('Escolha…',''));select.add(new Option('Documento de uma viagem','VIAGEM'));select.add(new Option('Fatura de uma ou mais viagens','FATURA'));label.append(select);row.append(label);
+      for(const xml of xmls){const option=element('label');const box=element('input');box.type='checkbox';box.value=xml.id;option.append(box,element('span',`CT-e ${xml.numero} · ${xml.cliente}`));row.append(option);}
+      row.addEventListener('change',()=>{$('confirmar-zip').disabled=pacoteOcupado||vinculosPacote()===null;});$('pdfs-zip').append(row);
+    }
+    $('conferencia-zip').hidden=false;
+  }catch(error){avisar(error.message,true);}
+  finally{pacoteOcupado=false;$('inspecionar-zip').disabled=false;$('arquivo-zip').disabled=false;$('confirmar-zip').disabled=vinculosPacote()===null;}
+});
+$('confirmar-zip').addEventListener('click',async()=>{
+  const vinculos=vinculosPacote();if(pacoteOcupado||vinculos===null)return;
+  const conferido=pacoteConferido;pacoteOcupado=true;$('confirmar-zip').disabled=true;$('inspecionar-zip').disabled=true;$('arquivo-zip').disabled=true;
+  try {
+    const form=new FormData();form.append('arquivo',conferido.file);form.append('configuracao',new Blob([JSON.stringify({sha256:conferido.sha256,vinculos})],{type:'application/json'}));
+    const result=await api('/api/pacotes/confirmacao',{method:'POST',body:form});
+    avisar(`ZIP ${result.reutilizado?'já registrado, sem duplicação':'importado'}: ${result.documentos.length} XML(s) e ${result.anexos.length} PDF(s). Nenhum e-mail enviado.`);
+    $('resumo-zip').textContent='Importação conferida. Escolha a viagem e selecione os anexos para a prévia.';
+    try{await atualizar(result.documentos[0]?.viagemId);}catch{avisar('Importação concluída. Use Atualizar dados para conferir.',true);}
+  }catch(error){avisar(error.message,true);}
+  finally{pacoteOcupado=false;$('confirmar-zip').disabled=vinculosPacote()===null;$('inspecionar-zip').disabled=false;$('arquivo-zip').disabled=false;}
 });
 
 atualizar().catch(error => {

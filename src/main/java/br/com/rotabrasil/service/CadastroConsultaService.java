@@ -21,6 +21,7 @@ public class CadastroConsultaService {
     private final ViagemRepository viagensRepository;
     private final DocumentoRepository documentosRepository;
     private final EnvioRepository enviosRepository;
+    private final AnexoRepository anexosRepository;
     private final CoordenacaoImportacaoService coordenacao;
 
     public List<ClienteResponse> listarClientes() { return clientes.listarClientes().stream().map(ClienteResponse::de).toList(); }
@@ -72,7 +73,7 @@ public class CadastroConsultaService {
         Viagem atual = viagens.buscarViagem(id);
         boolean mudaIdentidade = !Objects.equals(atual.getNumero(), dados.numero()) ||
                 !Objects.equals(atual.getCliente().getId(), dados.clienteId());
-        if (mudaIdentidade && (documentosRepository.existsByViagemId(id) || enviosRepository.existsByViagemId(id))) {
+        if (mudaIdentidade && (documentosRepository.existsByViagemId(id) || anexosRepository.existsByViagensId(id) || enviosRepository.existsByViagemId(id))) {
             throw new ConflitoRecursoException("Viagem possui documentos ou histórico de envio; identidade exige reconciliação");
         }
         return ViagemResponse.de(viagens.atualizarViagem(id, viagem(dados)));
@@ -82,7 +83,7 @@ public class CadastroConsultaService {
     public void excluirViagem(Long id) {
         coordenacao.bloquear();
         var viagem = viagens.buscarViagem(id);
-        if (documentosRepository.existsByViagemId(id) || enviosRepository.existsByViagemId(id)) {
+        if (documentosRepository.existsByViagemId(id) || anexosRepository.existsByViagensId(id) || enviosRepository.existsByViagemId(id)) {
             throw new ConflitoRecursoException("Viagem possui documentos ou histórico de envio e não pode ser excluída");
         }
         viagensRepository.delete(viagem);

@@ -1,5 +1,9 @@
 # Exclusões no painel e arquivamento de documentos
 
+Atualização: o [fluxo ZIP assistido](pacotes-assistidos.md) acrescenta PDFs/faturas
+compartilhados, seleção de PDFs na prévia e migração V6. Consulte esse contrato
+para o comportamento atual; o envio operacional continua desativado.
+
 Decisão operacional confirmada: o painel deve permitir excluir clientes e
 viagens, e documentos devem ser arquivados com possibilidade de restauração.
 Os arquivos XML/PDF são preservados.

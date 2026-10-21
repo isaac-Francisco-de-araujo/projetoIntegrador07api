@@ -333,6 +333,8 @@ class DocumentoIdentidadeIntegrationTest {
                 flyway.migrate();
                 try (var conexao = flyway.getConfiguration().getDataSource().getConnection(); var comando = conexao.createStatement()) {
                     comando.execute("ALTER TABLE documentos ADD COLUMN arquivado_em TIMESTAMP(6) WITH TIME ZONE");
+                    org.springframework.jdbc.datasource.init.ScriptUtils.executeSqlScript(conexao,
+                        new org.springframework.core.io.ClassPathResource("db/migration/V6__pacotes_e_anexos_compartilhados.sql"));
                 } catch (java.sql.SQLException ex) { throw new IllegalStateException(ex); }
             };
         }
