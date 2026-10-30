@@ -65,7 +65,7 @@ def main():
                         page.locator('#lista-documentos input[type=checkbox]').check()
                         page.locator('#destinatario').fill('conferencia@example.invalid')
                         page.locator('#gerar-previa').click()
-                        expect(page.locator('#resultado-previa')).to_contain_text('Nenhum e-mail enviado.')
+                        expect(page.locator('#resultado-previa')).to_contain_text('Nenhum e-mail enviado')
                         expect(page.locator('#resultado-previa')).to_contain_text('sintetico.xml')
                         assert page.request.get(url + '/api/viagens/1/envios').json() == []
                         checks.append('Prévia com seleção explícita, sem criar histórico ou enviar e-mail')

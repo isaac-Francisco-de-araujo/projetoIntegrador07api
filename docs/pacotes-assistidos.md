@@ -1,11 +1,30 @@
 # Importação assistida de ZIP
 
+**Exclusão de cliente:** veja o [contrato de exclusão conjunta](exclusao-cliente-com-documentos.md).
+Pacotes permanecem como histórico, mas não reutilizam um resultado parcial nem
+restauram automaticamente registros removidos pela exclusão do cliente.
+
+**Diagnóstico por arquivo:** inspeção/erros de confirmação agora incluem
+[relatório estruturado e recuperação manual](diagnostico-processamento.md),
+com origem no ZIP, etapa, situação, orientação, filtros e bloqueio integral.
+Um erro de conteúdo permite conferir as outras entradas quando seguro, sem
+importá-las parcialmente. HTTP 400 inclui o relatório em `diagnostico`.
+
+**Atualização V7:** após a importação, o painel permite [conferir e confirmar
+tentativas manuais em SIMULAÇÃO](envio-manual.md), consultar snapshots e confirmar
+reenvio. SMTP operacional continua desativado. As referências à prévia de
+metadados abaixo descrevem o endpoint anterior, mantido para compatibilidade.
+
 O painel, na rota `/`, recebe ZIPs com CT-es XML e PDFs produzidos pelo sistema
 externo. O envio operacional de e-mail continua desativado enquanto as regras e
 a configuração não forem definidas. A prévia não agenda envio nem registra uma
 entrega. Não há integração com contatos ou caixa de entrada do Outlook nesta etapa.
 
 ## Uso no painel
+
+Os PDFs agora têm [prévia no painel e revisão visual em cópia](previa-e-revisao-pdf.md),
+com páginas, zoom e geração de ZIP revisado para nova conferência. Os vínculos
+continuam manuais e o XML não é alterado pelas revisões do PDF.
 
 1. Em **Importar ZIP**, escolha o arquivo e clique em **Conferir ZIP**. Esta
    operação identifica as viagens pelo XML e mostra nomes, clientes e quantidades,
@@ -17,7 +36,7 @@ entrega. Não há integração com contatos ou caixa de entrada do Outlook nesta
 3. **Confirmar importação** revalida os mesmos bytes e grava todos os XMLs/PDFs
    em uma transação. Falhas desfazem os registros e as publicações próprias.
 4. Escolha uma viagem, selecione os XMLs/PDFs ativos e informe o destinatário
-   para gerar a prévia. Uma fatura compartilhada aparece em todas as viagens
+   para gerar a conferência de envio simulado. Uma fatura compartilhada aparece em todas as viagens
    vinculadas. Seleções são limpas ao trocar de viagem ou atualizar os dados.
 5. **Arquivar** um PDF preserva registro, vínculos e bytes, retirando-o da lista
    ativa e da prévia em todas as viagens vinculadas. O filtro de arquivados permite
@@ -29,9 +48,15 @@ em testes; o painel opera no banco configurado na aplicação.
 
 ## API
 
+- `POST /api/pacotes/previa-pdf?sha256=<hash>&arquivoId=a1`: multipart `arquivo`
+  com o mesmo ZIP conferido; retorna os bytes daquele PDF, sem importação.
+  Exige papel de operador/admin quando a segurança está ativa e proteção CSRF.
+
 - `POST /api/pacotes/inspecao`: multipart `arquivo` com o ZIP; retorna `sha256`
   do ZIP e `arquivos` (`id`, nome, tipo, tamanho, SHA-256 e metadados do CT-e).
-  IDs como `a0` são locais à conferência, não IDs do banco.
+  IDs como `a0` são locais à conferência, não IDs do banco. `nomeArquivo` é nome
+  simples; `caminhoInterno` conserva o caminho dentro do ZIP. O relatório também
+  inclui UUID, diagnósticos, contagens e indicação de interrupção.
 - `POST /api/pacotes/confirmacao`: multipart com o mesmo `arquivo` e parte
   `configuracao` de tipo `application/json`:
 
@@ -100,7 +125,8 @@ boleto; conserva os documentos fornecidos pelo sistema externo.
 
 ## Banco e execução
 
-A nova versão exige **V6**, que cria as tabelas de pacotes, PDFs e seus vínculos.
+A importação ZIP exige **V6**, que cria as tabelas de pacotes, PDFs e seus vínculos.
+A aplicação atual exige também **V7** para conferências/tentativas de e-mail.
 Bancos em V4 também precisam da V5 de arquivamento. O banco operacional não foi
 migrado nesta implementação. A configuração padrão continua Flyway desativado e
 Hibernate `validate`; não usar `ddl-auto=update`, `clean` ou `repair` como atalho.
@@ -128,5 +154,5 @@ exercita a conferência, associação, fatura compartilhada, prévia, arquivamen
 repetição e layout móvel. `scripts/testar-painel.py` mantém os cenários anteriores.
 
 Ficam pendentes: integração com Outlook, recebimento automático do ZIP, formato
-real anonimizado para validar o mapeamento comercial, envio SMTP operacional,
-auditoria de tentativas com destinatário/anexos e tratamento de falhas/reenvio.
+real anonimizado para validar o mapeamento comercial e envio SMTP operacional.
+A auditoria manual de tentativas, falhas e reenvio foi implementada em modo simulado.

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="540" height="360" viewBox="0 0 540 360" fill="none">
+  <defs>
+    <pattern id="grid" width="36" height="36" patternUnits="userSpaceOnUse" patternTransform="rotate(-24)"><path d="M36 0H0v36" stroke="#a5becb" stroke-opacity=".08"/></pattern>
+    <linearGradient id="road" x1="100" y1="260" x2="460" y2="70" gradientUnits="userSpaceOnUse"><stop stop-color="#4b706b"/><stop offset="1" stop-color="#a5c77c"/></linearGradient>
+    <linearGradient id="glow" x1="100" y1="300" x2="450" y2="70" gradientUnits="userSpaceOnUse"><stop stop-color="#d3f78b" stop-opacity="0"/><stop offset=".5" stop-color="#d3f78b"/><stop offset="1" stop-color="#d3f78b"/></linearGradient>
+    <radialGradient id="halo"><stop stop-color="#bbef79" stop-opacity=".17"/><stop offset="1" stop-color="#bbef79" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="540" height="360" fill="url(#grid)"/>
+  <ellipse cx="330" cy="190" rx="220" ry="170" fill="url(#halo)"/>
+  <g stroke="#abc1cb" stroke-opacity=".11" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m-20 155 125 55 130-60 120 50 205-95M-20 275l170-77 90 41 160-75 160 68M60 0l65 80 165 70 90 145M250-30l-85 110 70 70-85 210M440-20 325 80l30 120-80 170M560 20 415 95l20 70 125 55"/>
+  </g>
+  <g stroke="#abc1cb" stroke-opacity=".08" stroke-width="1.5"><path d="M10 60 500 285M-15 305 520 60M90 360 490 175M155-10 35 350M540 280 80 70M270-10 510 350"/></g>
+  <path d="m100 266 97-45c20-9 26-11 26-31v-22c0-14 7-22 20-28l75-35c13-6 24-5 37 1l36 16c14 7 27 6 40-1l35-18" stroke="#c7ee8d" stroke-opacity=".07" stroke-width="29" stroke-linecap="round"/>
+  <path d="m100 266 97-45c20-9 26-11 26-31v-22c0-14 7-22 20-28l75-35c13-6 24-5 37 1l36 16c14 7 27 6 40-1l35-18" stroke="url(#road)" stroke-opacity=".5" stroke-width="9" stroke-linecap="round"/>
+  <path d="m100 266 97-45c20-9 26-11 26-31v-22c0-14 7-22 20-28l75-35c13-6 24-5 37 1l36 16c14 7 27 6 40-1l35-18" stroke="url(#glow)" stroke-width="2" stroke-dasharray="5 8" stroke-linecap="round"/>
+  <ellipse cx="100" cy="267" rx="27" ry="13" fill="#c8f78b" fill-opacity=".07" stroke="#c8f78b" stroke-opacity=".3"/>
+  <ellipse cx="100" cy="267" rx="13" ry="6" fill="#c8f78b" fill-opacity=".2"/>
+  <circle cx="100" cy="263" r="5" fill="#d1f994"/>
+  <ellipse cx="466" cy="104" rx="32" ry="16" fill="#c8f78b" fill-opacity=".07" stroke="#c8f78b" stroke-opacity=".2"/>
+  <path d="M466 54c-13 0-23 10-23 23 0 17 23 34 23 34s23-17 23-34c0-13-10-23-23-23Z" fill="#c8f78b"/>
+  <circle cx="466" cy="77" r="8" fill="#243b36"/>
+  <g transform="translate(245 152) rotate(-25)">
+    <rect x="-7" y="3" width="76" height="40" rx="9" fill="#0b1723" fill-opacity=".5"/>
+    <path d="M0 0h43v32H0z" fill="#f3f6ed"/>
+    <path d="M0 0h43l9-8H9Z" fill="#fff"/>
+    <path d="m43 0 9-8v32l-9 8Z" fill="#c6d5bf"/>
+    <path d="M43 13h17l11 11v8H43Z" fill="#b9ed78"/>
+    <path d="m52 6 13 1 6 17-11-11H43Z" fill="#d4f99e"/>
+    <path d="M49 16h9l6 7H49Z" fill="#25483d"/>
+    <path d="M6 7h30M6 12h30" stroke="#d5dfd1" stroke-width="1.5"/>
+    <circle cx="12" cy="33" r="6" fill="#14252d"/><circle cx="12" cy="33" r="2.5" fill="#9eb1af"/>
+    <circle cx="57" cy="33" r="6" fill="#14252d"/><circle cx="57" cy="33" r="2.5" fill="#9eb1af"/>
+    <path d="M8 22h19" stroke="#398064" stroke-width="2"/><path d="m23 18 5 4-5 4" stroke="#398064" stroke-width="2"/>
+  </g>
+  <g fill="#a4bdb0" font-family="Segoe UI,sans-serif" font-size="8" letter-spacing="2"><text x="155" y="312">ORIGEM</text><text x="367" y="56">DESTINO</text></g>
+  <g fill="#d2f995"><circle cx="198" cy="89" r="2" opacity=".7"/><circle cx="364" cy="272" r="2" opacity=".5"/><circle cx="498" cy="218" r="2" opacity=".4"/></g>
+</svg>

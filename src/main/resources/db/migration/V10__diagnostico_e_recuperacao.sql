@@ -1,0 +1,12 @@
+ALTER TABLE processamentos ADD correlacao VARCHAR(36);
+ALTER TABLE processamentos ADD chave_pendencia VARCHAR(64);
+ALTER TABLE processamentos ADD resolvido_por VARCHAR(36);
+ALTER TABLE processamentos ADD resolvido_em TIMESTAMP WITH TIME ZONE;
+ALTER TABLE processamentos ADD criterio_resolucao VARCHAR(255);
+CREATE INDEX ix_processamentos_pendencia ON processamentos(chave_pendencia,criado_em);
+CREATE INDEX ix_processamentos_anterior ON processamentos(anterior_id);
+ALTER TABLE exportacoes ADD correlacao VARCHAR(36);
+ALTER TABLE exportacoes ADD execucao_em TIMESTAMP WITH TIME ZONE;
+ALTER TABLE exportacoes ADD recuperacoes TEXT NOT NULL DEFAULT '[]';
+ALTER TABLE tentativas_email ADD correlacao VARCHAR(36);
+ALTER TABLE notificacoes_recebimento ADD correlacao VARCHAR(36);

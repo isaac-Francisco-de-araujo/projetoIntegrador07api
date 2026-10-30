@@ -13,7 +13,17 @@ import java.util.Comparator;
 import java.util.List;
 
 @RestControllerAdvice
+@lombok.RequiredArgsConstructor
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+    private final br.com.rotabrasil.service.DiagnosticoOperacaoService diagnosticos;
+    @ExceptionHandler(DiagnosticoPacoteException.class)
+    ResponseEntity<ErroPacote> diagnosticoPacote(DiagnosticoPacoteException ex) {
+        br.com.rotabrasil.dto.DiagnosticoOperacao d;
+        try{d=diagnosticos.processamento(ex.diagnostico().operacaoId());}
+        catch(RuntimeException semHistorico){d=diagnosticos.inspecao(ex.diagnostico(),org.slf4j.MDC.get("operacaoId"),java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC));}
+        return ResponseEntity.status(ex.status()).body(new ErroPacote(LocalDateTime.now(),ex.status().value(),ex.getMessage(),List.of(),ex.diagnostico(),d));
+    }
+    public record ErroPacote(LocalDateTime timestamp,int status,String mensagem,List<CampoInvalido> campos,br.com.rotabrasil.dto.PacoteDtos.Inspecao diagnostico,br.com.rotabrasil.dto.DiagnosticoOperacao diagnosticoOperacao) {}
     @ExceptionHandler(DataIntegrityViolationException.class)
     ResponseEntity<ErroResponse> integridade(DataIntegrityViolationException ex) { return response(HttpStatus.CONFLICT, "Operação viola a integridade ou unicidade dos dados"); }
     @ExceptionHandler(PessimisticLockingFailureException.class)
@@ -31,7 +41,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(DataAccessException.class)
     ResponseEntity<ErroResponse> persistencia(DataAccessException ex) { return response(HttpStatus.INTERNAL_SERVER_ERROR, "Erro de persistência de dados"); }
     @ExceptionHandler(Exception.class)
-    ResponseEntity<ErroResponse> erroGenerico(Exception ex) { return response(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno no servidor"); }
+    ResponseEntity<ErroResponse> erroGenerico(Exception ex) {
+        org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class).error("Falha inesperada; correlacao={} tipo={} pilhaSemMensagem={}",org.slf4j.MDC.get("operacaoId"),ex.getClass().getSimpleName(),java.util.Arrays.toString(ex.getStackTrace()));
+        return response(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno no servidor; informe o identificador X-Request-Id ao responsável");
+    }
 
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
@@ -62,8 +75,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.status(status).body(erro(status, mensagem, List.of()));
     }
     private ErroResponse erro(HttpStatusCode status, String mensagem, List<CampoInvalido> campos) {
-        return new ErroResponse(LocalDateTime.now(), status.value(), mensagem, campos);
+        return new ErroResponse(LocalDateTime.now(), status.value(), mensagem, campos,diagnosticos.requisicao("HTTP_"+status.value(),mensagem,status.value()));
     }
     public record CampoInvalido(String campo, String mensagem) {}
-    public record ErroResponse(LocalDateTime timestamp, int status, String mensagem, List<CampoInvalido> campos) {}
+    public record ErroResponse(LocalDateTime timestamp, int status, String mensagem, List<CampoInvalido> campos,br.com.rotabrasil.dto.DiagnosticoOperacao diagnosticoOperacao) {}
 }

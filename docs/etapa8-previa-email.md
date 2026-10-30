@@ -1,5 +1,11 @@
 # Etapa 8 — Preparação de e-mail sem envio real
 
+**Atualização V7:** o painel agora usa [conferência persistida e confirmação
+manual em SIMULAÇÃO](envio-manual.md), com revalidação, histórico auditável,
+idempotência e reenvio explícito. O contrato `/previa-email` e o histórico legado
+documentados abaixo são preservados. Pendências de auditoria descritas no registro
+histórico desta etapa foram atendidas no fluxo novo; SMTP real continua desativado.
+
 Atualização: o [fluxo ZIP assistido](pacotes-assistidos.md) acrescenta PDFs/faturas
 compartilhados, seleção de PDFs na prévia e migração V6. Consulte esse contrato
 para o comportamento atual; o envio operacional continua desativado.

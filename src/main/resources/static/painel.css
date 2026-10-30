@@ -11,6 +11,19 @@
   background:var(--surface);
   font-synthesis:none
 }
+.operation-summary { padding:14px; margin:16px 0; border:1px solid var(--line); border-radius:8px; background:var(--cream); overflow-wrap:anywhere }
+.file-diagnostics { list-style:none; padding:0; max-height:560px; overflow:auto }
+.file-diagnostic { padding:14px; margin:12px 0; border:1px solid var(--line); border-radius:8px; overflow-wrap:anywhere }
+.file-diagnostic p { margin:7px 0 }
+#conferencia-zip { min-width:0; overflow-wrap:anywhere }
+#reconferir-zip { white-space:normal }
+.filters,.pagination { display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:14px 0 }
+.filters label { min-width:0;flex:1 }
+.filters input { width:100% }
+#processamentos,#administracao { overflow-wrap:anywhere;min-width:0 }
+#lista-processamentos article,#lista-usuarios article { border-bottom:1px solid var(--line);padding:14px 0 }
+[hidden] { display:none!important }
+.topbar { gap:10px;flex-wrap:wrap;height:auto;min-height:78px }
 * {
   box-sizing:border-box
 }
@@ -236,7 +249,7 @@ h2 {
   color:#9b392a;
   border-color:#ecc5bc
 }
-.notice[hidden],.preview[hidden] {
+.notice[hidden],.preview[hidden],.button[hidden] {
   display:none
 }
 .stats {

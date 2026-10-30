@@ -24,8 +24,8 @@ public final class InventarioBanco {
     public Relatorio analisar(Connection conexao) throws Exception {
         var achados = new ArrayList<Achado>();
         var dados = new LinkedHashMap<String, List<Map<String, String>>>();
-        for (String tabela : List.of("clientes", "viagens", "documentos", "envios", "pacotes", "anexos", "pacote_documentos", "anexo_viagens")) {
-            if (List.of("pacotes", "anexos", "pacote_documentos", "anexo_viagens").contains(tabela)) {
+        for (String tabela : List.of("clientes", "viagens", "documentos", "envios", "pacotes", "anexos", "pacote_documentos", "anexo_viagens", "conferencias_email", "tentativas_email", "usuarios", "auditoria", "processamentos", "configuracao_operacao", "testes_configuracao", "recebimentos", "notificacoes_recebimento", "exportacoes", "exportacao_arquivos")) {
+            if (!List.of("clientes", "viagens", "documentos", "envios").contains(tabela)) {
                 try (var rs = conexao.getMetaData().getTables(null,"PUBLIC",tabela.toUpperCase(Locale.ROOT),new String[]{"TABLE"})) {
                     if (!rs.next()) continue;
                 }
@@ -68,7 +68,8 @@ public final class InventarioBanco {
         for (var doc : dados.get("documentos")) {
             long id = id(doc);
             try {
-                Path caminho = Path.of(Objects.requireNonNull(doc.get("caminho"))).toAbsolutePath().normalize();
+                Path informado=Path.of(Objects.requireNonNull(doc.get("caminho")));
+                Path caminho=(informado.isAbsolute()?informado:raiz.resolve(informado)).toAbsolutePath().normalize();
                 if (!caminho.startsWith(raiz)) { achados.add(new Achado("CAMINHO_FORA_DA_RAIZ", id)); continue; }
                 usados.add(caminho);
                 if (!Files.isRegularFile(caminho, LinkOption.NOFOLLOW_LINKS)) {
@@ -121,7 +122,8 @@ public final class InventarioBanco {
                     ("VIAGEM".equals(pdf.get("finalidade")) && destinos.size()!=1))
                 achados.add(new Achado("ANEXO_RELACIONAMENTO_INVALIDO",id));
             try {
-                Path caminho=Path.of(Objects.requireNonNull(pdf.get("caminho"))).toAbsolutePath().normalize();
+                Path informado=Path.of(Objects.requireNonNull(pdf.get("caminho")));
+                Path caminho=(informado.isAbsolute()?informado:raiz.resolve(informado)).toAbsolutePath().normalize();
                 if (!caminho.startsWith(raiz)) {achados.add(new Achado("CAMINHO_FORA_DA_RAIZ",id));continue;}
                 usados.add(caminho);
                 if (!Files.isRegularFile(caminho,LinkOption.NOFOLLOW_LINKS) || !caminho.toRealPath().startsWith(raiz.toRealPath())) {

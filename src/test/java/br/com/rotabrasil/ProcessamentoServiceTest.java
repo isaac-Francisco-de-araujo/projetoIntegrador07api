@@ -25,6 +25,7 @@ class ProcessamentoServiceTest {
         var armazenamento = mock(ArmazenamentoTransacionalService.class);
         Path destino = temp.resolve("66213/" + CteFixture.CHAVE + ".xml");
         when(armazenamento.preparar(any(), eq("66213"), eq(CteFixture.CHAVE))).thenReturn(destino);
+        when(armazenamento.caminhoPersistivel(destino)).thenReturn(destino.toString());
         var service = new ProcessamentoService(new ExtratorDadosXml(), armazenamento,
                 new ViagemService(viagens), new DocumentoService(documentos, new ExtratorDadosXml()), new ClienteService(clientes), mock(CoordenacaoImportacaoService.class));
         String xmlCte = CteFixture.xml();

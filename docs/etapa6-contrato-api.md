@@ -159,6 +159,11 @@ confirmada; não foi implementada nesta etapa.
 
 ## Evolução posterior
 
+A [exclusão conjunta de cliente e documentos](exclusao-cliente-com-documentos.md)
+amplia a regra histórica de cliente sem vínculos: conferência e confirmação
+explícitas permitem excluir suas viagens e documentos, preservando PDFs de outros
+clientes e bloqueando tentativas com resultado desconhecido.
+
 A [migração V5 e as exclusões/arquivamento](exclusoes-arquivamento.md) ampliam
 o contrato: viagem vazia pode ser excluída, documentos podem ser arquivados e
 restaurados, e consultas usuais de documentos retornam somente ativos.

@@ -1,5 +1,15 @@
 # Exclusões no painel e arquivamento de documentos
 
+**Exclusão de cliente atualizada:** a [exclusão conjunta de cliente e documentos](exclusao-cliente-com-documentos.md)
+permite remover definitivamente suas viagens e documentos após conferência e
+confirmação, preservando PDFs compartilhados com outros clientes. As regras de
+cliente sem vínculos abaixo registram a etapa anterior. Arquivamento individual
+de documento e arquivamento de ZIP continuam reversíveis.
+
+**Evolução atual:** veja [exclusão de ZIP/XML/PDF e navegação por páginas](exclusao-arquivos-e-paginas.md)
+para os novos botões, remoção de seleção, gerenciamento de ZIPs importados,
+conferência de impacto e restauração por arquivo. O arquivamento continua reversível.
+
 Atualização: o [fluxo ZIP assistido](pacotes-assistidos.md) acrescenta PDFs/faturas
 compartilhados, seleção de PDFs na prévia e migração V6. Consulte esse contrato
 para o comportamento atual; o envio operacional continua desativado.

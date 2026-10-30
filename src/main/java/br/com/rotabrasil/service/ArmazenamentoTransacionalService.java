@@ -13,6 +13,7 @@ import java.nio.file.Path;
 public class ArmazenamentoTransacionalService {
     private static final Logger LOG = LoggerFactory.getLogger(ArmazenamentoTransacionalService.class);
     private final OrganizadorArquivosService arquivos;
+    public String caminhoPersistivel(Path caminho){return arquivos.caminhoPersistivel(caminho);}
 
     public Path preparar(byte[] conteudo, String numero, String chave) {
         if (!TransactionSynchronizationManager.isActualTransactionActive() ||

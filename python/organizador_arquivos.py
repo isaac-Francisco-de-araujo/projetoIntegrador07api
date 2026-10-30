@@ -15,5 +15,13 @@ def organizar(arquivo: str, raiz: str, identificador: str) -> Path:
     destino = (pasta / origem.name).resolve()
     if destino.parent != pasta:
         raise ValueError("Nome de arquivo inválido")
-    shutil.copy2(origem, destino)
+    # Abertura exclusiva: nunca substituir um documento já existente.
+    # Este auxiliar não publica no acervo transacional do Java.
+    with origem.open('rb') as entrada, destino.open('xb') as saida:
+        try:
+            shutil.copyfileobj(entrada, saida)
+        except BaseException:
+            saida.close()
+            destino.unlink(missing_ok=True)
+            raise
     return destino

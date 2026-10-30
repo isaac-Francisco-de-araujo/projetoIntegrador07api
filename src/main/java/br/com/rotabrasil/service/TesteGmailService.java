@@ -26,10 +26,6 @@ public final class TesteGmailService {
     }
 
     public static void validarEndereco(String endereco) throws MessagingException {
-        if(endereco==null || endereco.isBlank() || endereco.contains("\r") || endereco.contains("\n"))
-            throw new MessagingException("Endereço de e-mail inválido");
-        var parsed=new InternetAddress(endereco,true);parsed.validate();
-        if(!parsed.getAddress().equals(endereco) || !endereco.contains("@") || parsed.getPersonal()!=null)
-            throw new MessagingException("Informe um único endereço sem nome de exibição");
+        ValidacaoDocumental.validarEnderecoUnico(endereco);
     }
 }

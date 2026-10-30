@@ -1,5 +1,12 @@
 # Etapa 4 — Inventário, backup, migrações e concorrência
 
+**Código atual: V10.** A [nova configuração, exportação e notificações](configuracoes-exportacao-notificacoes.md)
+acrescenta seis tabelas ao inventário/fingerprint. Bancos existentes continuam
+exigindo autorização e backup verificado antes da migração. A versão exigida pelo
+código não comprova atualização de qualquer banco em uso.
+A [V10 de diagnóstico e recuperação](diagnostico-recuperacao.md) amplia colunas
+dos históricos existentes, sem criar tabela paralela de pendências.
+
 ## Estado da aplicação
 
 Java 25, Spring Boot 3.5.6 e H2 foram preservados. Flyway 11.7.2 é a versão
@@ -35,6 +42,20 @@ verificado se houver registros, mesmo que alguém force um baseline externo.
 | V2 | Colunas opcionais de chave/hash e linha de coordenação das importações |
 | V3 | Inventário completo; preenche chave e SHA-256 apenas com dados recuperáveis e sem impedimentos |
 | V4 | Unicidade de CNPJ, número operacional e chave fiscal; formato e obrigatoriedade da identidade para XML |
+| V5 | Arquivamento/restauração de documentos, sem remover arquivos |
+| V6 | Pacotes ZIP, PDFs e vínculos de faturas compartilhadas |
+| V7 | Conferências e tentativas manuais de e-mail com snapshots e idempotência |
+| V8 | Operadores, auditoria e histórico de processamentos |
+| V9 | Configuração, testes, recebimentos, notificações e exportações com itens/snapshots |
+| V10 | Correlação, resolução comprovada de processamentos e histórico de recuperação da exportação |
+
+A versão atual exige V10. O inventário/fingerprint/backup inclui também as tabelas
+`conferencias_email` e `tentativas_email`, preservando destinatário, seleção e
+resultados das tentativas. Veja [o fluxo simulado e os estados](envio-manual.md).
+Inclui ainda configuração da operação e históricos V9. Cópias na raiz externa
+de exportação não substituem o backup dos arquivos originais e ficam fora do
+acervo incluído pela ferramenta de backup.
+Nenhuma migração operacional adicional foi autorizada/executada nesta etapa.
 
 O baseline em V1 de um banco legado só é criado pela ferramenta após conferir
 inventário e backup. V2 é compatível com colunas de identidade já existentes.

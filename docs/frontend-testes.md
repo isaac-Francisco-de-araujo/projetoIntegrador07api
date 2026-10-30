@@ -1,5 +1,113 @@
 # Painel web para testes da API
 
+**Navegação atual em sete telas:** [exclusão de arquivos e páginas](exclusao-arquivos-e-paginas.md).
+Inclui remoção de seleções, exclusão por arquivamento de ZIP/XML/PDF e restauração.
+
+**Versão atual:** veja [modernização operacional do frontend](modernizacao-frontend.md)
+para loading de cinco segundos, menu responsivo/recolhível, remoções solicitadas,
+consultas completas, detalhes de clientes/viagens e importação individual XML/PDF.
+Os registros a seguir mantêm as características e os resultados das versões anteriores.
+
+**Prévia dos PDFs do ZIP:** o painel agora permite visualizar páginas, usar zoom
+e preparar correções visuais em uma cópia. O novo ZIP exige nova conferência e
+associação explícita, preservando XMLs e originais. Consulte
+[o fluxo, os limites e os resultados dos testes](previa-e-revisao-pdf.md).
+
+## Redesign do workspace — outubro de 2026
+
+O painel recebeu identidade visual azul-profundo/verde-lima, navegação lateral
+com seção ativa, banner com ilustração SVG local de rota/caminhão, indicadores
+com atalhos e uma trilha de importação, conferência e preparação de envio.
+Formulários, tabelas, históricos, administração e confirmação mantêm seus IDs
+e os contratos existentes. Os totais continuam vindo do banco conectado.
+
+- `painel-visual.css`: camada visual responsiva sobre os estilos dos estados existentes.
+- `painel-interface.js`: data local e acompanhamento da seção na navegação.
+- `rota-visual.svg`: ilustração decorativa original, sem recurso externo/CDN.
+- Acessibilidade: link para pular navegação, foco visível, ícones decorativos
+  identificados e respeito a `prefers-reduced-motion`.
+
+Verificação deste redesign, em Chrome/Playwright com H2 em memória, acervo
+temporário e CT-e sintético: **11 verificações aprovadas**, sem erro JavaScript.
+Incluem inicialização/permissões locais, importação XML, seleção de documentos,
+conferência simulada, busca/estado vazio, navegação ativa, movimento reduzido e
+ausência de overflow horizontal nas larguras **360, 390, 768, 1024, 1440 e 1920 px**.
+Empacotamento externo Maven e sintaxe dos módulos JavaScript aprovados.
+
+Capturas e resultado: `C:/Users/florb/AppData/Local/Temp/opencode/rotabrasil-front-visual/`.
+O teste de envio manual existente também avançou pelos fluxos de ZIP, diagnóstico,
+simulação, reenvio e persistência após reinício; sua execução completa não foi
+aprovada porque o helper `start()` esgotou a espera de disponibilidade no reinício
+com autenticação (o log registra Tomcat iniciado). Não se declara validação do
+login por essa execução. Nenhum e-mail real foi enviado.
+
+### Abertura animada e transição para o workspace
+
+A entrada agora apresenta uma tela editorial animada com mapa de conexões,
+cartões flutuantes, marca e progresso das etapas efetivamente concluídas.
+`painel-abertura.{js,css}` concentra essa apresentação. `painel.js` informa
+interface, sessão, documentos e conclusão; falhas da consulta inicial são
+propagadas após renderizar o diagnóstico, para não concluir a abertura com
+dados indisponíveis.
+
+- A primeira abertura tem uma apresentação mínima de 1,3 s; na mesma aba,
+  as seguintes usam 250 ms. O carregamento dos dados nunca é ignorado.
+- É possível pular o tempo de apresentação ou pausar as animações.
+- `prefers-reduced-motion` remove animações e a espera de apresentação.
+- O painel fica `inert` durante a abertura; a navegação por teclado só é liberada
+  ao terminar. O foco é restaurado quando necessário.
+- Falhas oferecem recarregamento ou acesso ao painel com diagnóstico. O progresso
+  não é concluído nesse caso. A abertura começa apenas quando o módulo é executado;
+  JavaScript desativado tem orientação própria, sem overlay permanente.
+- A entrada dos elementos do dashboard, os atalhos e os botões receberam
+  transições adicionais, respeitando movimento reduzido.
+
+Validação Chrome/Playwright com backend real, H2 em memória e CT-e sintético:
+**17 verificações aprovadas, sem erros JavaScript**. Incluem os fluxos anteriores,
+progresso durante resposta atrasada, pausa, pular sem ignorar requisição pendente,
+liberação do painel, falha sintética HTTP 503, recuperação e navegação por teclado.
+A abertura foi conferida de 360 a 1920 px; o dashboard, nas seis larguras anteriores.
+Capturas e resultado em
+`C:/Users/florb/AppData/Local/Temp/opencode/rotabrasil-abertura-visual/`.
+
+### Workspace premium: temas e central de atalhos
+
+O dashboard ganhou composição editorial ampliada, quatro indicadores reais
+(clientes, viagens, XMLs ativos e processamentos pendentes), faixa de formatos
+no banner, hierarquia revisada e tema escuro completo. A preferência claro/escuro
+fica em `localStorage`, com fallback quando o armazenamento não está disponível.
+O botão de tema identifica a próxima ação e seu estado para leitores de tela.
+
+A central de atalhos (`painel-comandos.js`) abre pelo botão da barra superior
+ou `Ctrl+K` / `Cmd+K`. Permite pesquisar as áreas do painel sem distinção de acentos,
+navegar pelas setas e abrir com Enter. Escape fecha e restaura o foco; navegar
+para uma área posiciona o foco no destino. Não abre sobre outro dialog ou durante
+a tela de carregamento. As ações disponíveis são navegação e alteração de tema.
+
+As áreas de upload aceitam arrastar um único XML ou ZIP. O drop somente seleciona
+o arquivo, respeita o estado desabilitado e dispara a invalidação de conferência
+já existente. Tipo incorreto ou múltiplos arquivos preservam a seleção anterior
+e exibem aviso. Importação e conferência continuam sendo ações explícitas.
+
+Verificação Chrome/Playwright com backend real, H2 isolado e arquivos sintéticos:
+**23 verificações aprovadas, nenhum erro JavaScript**. Além das anteriores,
+incluem atalhos, foco, busca vazia, persistência de tema, indicador conectado à
+API e drag-and-drop. Os dois temas foram conferidos nas larguras 360, 390, 768,
+1024, 1440 e 1920 px, sem overflow horizontal da página. Capturas e resultado em
+`C:/Users/florb/AppData/Local/Temp/opencode/rotabrasil-workspace-premium/`.
+
+Os registros abaixo descrevem as versões anteriores do painel.
+
+**Diagnóstico por arquivo:** o painel agora mantém o relatório da conferência,
+filtra erros/pendências e orienta a [correção por ZIP novo](diagnostico-processamento.md).
+O relatório fica na memória da página, não é histórico permanente de processamento.
+
+**Atualização V7:** o painel existente foi ampliado com [conferência validada,
+confirmação de SIMULAÇÃO, tentativas auditáveis e reenvio explícito](envio-manual.md).
+Os detalhes e resultados abaixo registram a versão anterior. O novo teste
+`scripts/testar-envio-manual.cjs` usa Node/Playwright com Chrome e inclui perda de
+resposta, recuperação idempotente, alteração de seleção e persistência após reinício.
+
 Atualização: o [fluxo ZIP assistido](pacotes-assistidos.md) acrescenta PDFs/faturas
 compartilhados, seleção de PDFs na prévia e migração V6. Consulte esse contrato
 para o comportamento atual; o envio operacional continua desativado.

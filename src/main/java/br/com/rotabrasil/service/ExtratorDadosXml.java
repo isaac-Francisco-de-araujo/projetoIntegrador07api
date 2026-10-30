@@ -25,7 +25,12 @@ public class ExtratorDadosXml {
             factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
             factory.setXIncludeAware(false);
             factory.setExpandEntityReferences(false);
-            Element raiz = factory.newDocumentBuilder().parse(xml).getDocumentElement();
+            var builder = factory.newDocumentBuilder();
+            builder.setErrorHandler(new org.xml.sax.helpers.DefaultHandler() {
+                @Override public void error(org.xml.sax.SAXParseException ex) throws org.xml.sax.SAXException { throw ex; }
+                @Override public void fatalError(org.xml.sax.SAXParseException ex) throws org.xml.sax.SAXException { throw ex; }
+            });
+            Element raiz = builder.parse(xml).getDocumentElement();
             if (!NS.equals(raiz.getNamespaceURI()) ||
                     !("CTe".equals(raiz.getLocalName()) || "cteProc".equals(raiz.getLocalName()))) {
                 throw new ArquivoInvalidoException("Estrutura incompatível: esperado CTe ou cteProc");
@@ -58,9 +63,9 @@ public class ExtratorDadosXml {
                 status = motivo == null ? "Protocolo sem motivo informado" : motivo;
             }
             Element endereco = filho(dest, "enderDest");
-            return new DadosViagemXml(numero, data, status,
+            return ValidacaoDocumental.conferir(new DadosViagemXml(numero, data, status,
                     textoObrigatorio(dest, "xNome"), textoObrigatorio(dest, "CNPJ"),
-                    texto(dest, "email"), endereco == null ? null : texto(endereco, "fone"), chave);
+                    texto(dest, "email"), endereco == null ? null : texto(endereco, "fone"), chave));
         } catch (ArquivoInvalidoException ex) {
             throw ex;
         } catch (Exception ex) {

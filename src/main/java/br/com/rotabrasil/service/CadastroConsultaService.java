@@ -23,6 +23,7 @@ public class CadastroConsultaService {
     private final EnvioRepository enviosRepository;
     private final AnexoRepository anexosRepository;
     private final CoordenacaoImportacaoService coordenacao;
+    private final ExclusaoClienteService exclusaoClientes;
 
     public List<ClienteResponse> listarClientes() { return clientes.listarClientes().stream().map(ClienteResponse::de).toList(); }
     public ClienteResponse buscarCliente(Long id) { return ClienteResponse.de(clientes.buscarCliente(id)); }
@@ -53,12 +54,7 @@ public class CadastroConsultaService {
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public void excluirCliente(Long id) {
-        coordenacao.bloquear();
-        clientes.buscarCliente(id);
-        if (viagensRepository.existsByClienteId(id) || enviosRepository.existsByClienteId(id)) {
-            throw new ConflitoRecursoException("Cliente possui viagens ou histórico de envio e não pode ser excluído");
-        }
-        clientes.excluirCliente(id);
+        exclusaoClientes.excluir(id,false,null);
     }
 
     @Transactional(isolation = Isolation.READ_COMMITTED)

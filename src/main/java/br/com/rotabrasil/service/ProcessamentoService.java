@@ -46,9 +46,9 @@ public class ProcessamentoService {
         var viagem = viagemService.buscarOuCadastrar(dados.numero(), dados.data(), dados.status(), cliente);
         var caminho = armazenamento.preparar(conteudo, dados.numero(), dados.chaveAcesso());
         var documento = documentoService.registrarDocumento(Documento.builder()
-                .nomeArquivo(arquivo.getOriginalFilename())
+                .nomeArquivo(ValidacaoDocumental.nomeSimples(arquivo.getOriginalFilename()))
                 .tipo("XML")
-                .caminho(caminho.toString())
+                .caminho(armazenamento.caminhoPersistivel(caminho))
                 .chaveAcesso(dados.chaveAcesso())
                 .sha256(hash)
                 .viagem(viagem)
@@ -61,5 +61,6 @@ public class ProcessamentoService {
         String nome = arquivo.getOriginalFilename() == null ? "" : arquivo.getOriginalFilename();
         if (!nome.toLowerCase(Locale.ROOT).endsWith(".xml")) throw new ArquivoInvalidoException("A entrada principal deve possuir extensão XML");
         if (arquivo.getSize() > ConteudoXml.LIMITE_BYTES) throw new ArquivoInvalidoException("Arquivo XML excede o limite de 20 MB");
+        ValidacaoDocumental.nomeSimples(nome);
     }
 }

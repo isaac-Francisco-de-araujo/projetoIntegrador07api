@@ -124,7 +124,11 @@ class ProtocoloArquivosTest {
 
     @Test
     void recusaAreaTemporariaComoLinkSimbolico(@TempDir Path fora) throws Exception {
-        Files.createSymbolicLink(raiz.resolve(".pendentes"), fora);
+        try{Files.createSymbolicLink(raiz.resolve(".pendentes"), fora);}
+        catch(java.nio.file.FileSystemException|UnsupportedOperationException ex){
+            if(!System.getProperty("os.name").toLowerCase(java.util.Locale.ROOT).contains("windows"))throw ex;
+            org.junit.jupiter.api.Assumptions.assumeTrue(false,"Windows sem suporte/privilégio para symlink; o caso é obrigatório no job Linux da CI");
+        }
         assertThatThrownBy(() -> arquivos().prepararXml(conteudo(), "66213", CteFixture.CHAVE))
                 .isInstanceOf(ArmazenamentoException.class);
         try (var entradas = Files.list(fora)) {

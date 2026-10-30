@@ -154,7 +154,9 @@ class MigracaoEBackupTest {
         try (var conexao = DriverManager.getConnection("jdbc:h2:file:"+base.resolve("banco"), "sa", "")) {
             assertThat(colunaIdentidade(conexao)).isFalse();
         }
-        assertThat(Files.getPosixFilePermissions(saida)).isEqualTo(java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"));
+        if(Files.getFileStore(saida).supportsFileAttributeView("posix"))
+            assertThat(Files.getPosixFilePermissions(saida)).isEqualTo(java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"));
+        else assertThat(Files.isRegularFile(saida,LinkOption.NOFOLLOW_LINKS)).isTrue();
     }
 
     @Test void bancoLegadoNaoRecebeBaselineAutomatico() throws Exception {
@@ -185,7 +187,7 @@ class MigracaoEBackupTest {
         }
     }
 
-    @Test void migraV4ParaV6ComBackupSemAlterarDadosOuArquivos() throws Exception {
+    @Test void migraV4ParaV8ComBackupSemAlterarDadosOuArquivos() throws Exception {
         try (var conexao = legado()) {
             criarBackup(conexao);
             var flyway = org.flywaydb.core.Flyway.configure()
@@ -203,7 +205,54 @@ class MigracaoEBackupTest {
             assertThat(escalar(conexao,"SELECT arquivado_em FROM documentos WHERE id=103")).isNull();
             assertThat(escalar(conexao,"SELECT COUNT(*) FROM \"flyway_schema_history\" WHERE \"version\"='5' AND \"success\"=TRUE")).isEqualTo("1");
             assertThat(escalar(conexao,"SELECT COUNT(*) FROM \"flyway_schema_history\" WHERE \"version\"='6' AND \"success\"=TRUE")).isEqualTo("1");
+            assertThat(escalar(conexao,"SELECT COUNT(*) FROM \"flyway_schema_history\" WHERE \"version\"='7' AND \"success\"=TRUE")).isEqualTo("1");
+            assertThat(escalar(conexao,"SELECT COUNT(*) FROM \"flyway_schema_history\" WHERE \"version\"='8' AND \"success\"=TRUE")).isEqualTo("1");
+            assertThat(escalar(conexao,"SELECT COUNT(*) FROM tentativas_email")).isEqualTo("0");
+            assertThat(new InventarioBanco(raiz()).analisar(conexao).totais()).containsKeys("conferencias_email", "tentativas_email","processamentos","usuarios","auditoria");
             assertThat(escalar(conexao,"SELECT COUNT(*) FROM anexos")).isEqualTo("0");
+            assertThat(Files.readString(raiz().resolve("legado.xml"))).isEqualTo(CteFixture.xml());
+        }
+    }
+
+    @Test void inventarioBackupERestauracaoPreservamRetratoDasTentativasV7() throws Exception {
+        String snapshot="{\"destinatario\":\"sintetico@example.invalid\",\"numero\":\"66213\",\"arquivos\":[]}";
+        try(var conexao=legado()) {
+            criarBackup(conexao);ManutencaoBanco.migrar(conexao,raiz(),backup());
+            var inventario=new InventarioBanco(raiz());String antes=inventario.analisar(conexao).impressao();
+            try(var p=conexao.prepareStatement("INSERT INTO conferencias_email(id,viagem_id,selecao,snapshot,criada_em,expira_em) VALUES('conferencia-sintetica',102,'{}',?,CURRENT_TIMESTAMP,DATEADD('MINUTE',30,CURRENT_TIMESTAMP))")) {
+                p.setString(1,snapshot);p.executeUpdate();
+            }
+            try(var p=conexao.prepareStatement("INSERT INTO tentativas_email(id,conferencia_id,viagem_id,snapshot,modo,situacao,motivo,criada_em) VALUES('tentativa-sintetica','conferencia-sintetica',102,?,'SIMULADO','DESCONHECIDO','Teste sintetico',CURRENT_TIMESTAMP)")) {
+                p.setString(1,snapshot);p.executeUpdate();
+            }
+            assertThat(inventario.analisar(conexao).impressao()).isNotEqualTo(antes);
+            assertThat(inventario.analisar(conexao).totais()).containsEntry("tentativas_email",1L).containsEntry("conferencias_email",1L);
+            BackupBanco.criar(conexao,raiz(),base.resolve("backup-v7"));
+        }
+        BackupBanco.verificar(base.resolve("backup-v7"));
+        try(var zip=new ZipInputStream(Files.newInputStream(base.resolve("backup-v7/banco.zip")))) {
+            for(var entrada=zip.getNextEntry();entrada!=null;entrada=zip.getNextEntry())
+                if(entrada.getName().endsWith(".mv.db"))Files.copy(zip,base.resolve("restaurado-v7.mv.db"));
+        }
+        try(var c=DriverManager.getConnection("jdbc:h2:file:"+base.resolve("restaurado-v7")+";IFEXISTS=TRUE","sa","")) {
+            assertThat(escalar(c,"SELECT snapshot FROM tentativas_email")).isEqualTo(snapshot);
+            assertThat(escalar(c,"SELECT situacao FROM tentativas_email")).isEqualTo("DESCONHECIDO");
+            assertThat(escalar(c,"SELECT snapshot FROM conferencias_email")).isEqualTo(snapshot);
+        }
+    }
+    @Test void migraV7ParaV8SemReescreverSnapshotsNemInventarOperadoresLegados()throws Exception {
+        String snapshot="{\"destinatario\":\"sintetico@example.invalid\",\"numero\":\"66213\",\"arquivos\":[]}";
+        try(var c=legado()){
+            criarBackup(c);
+            var flyway=org.flywaydb.core.Flyway.configure().dataSource(new org.springframework.jdbc.datasource.SingleConnectionDataSource(c,true)).baselineVersion("1").baselineOnMigrate(false).cleanDisabled(true).target("7")
+                    .javaMigrations(new br.com.rotabrasil.migracao.V3__ConferirEPreencherIdentidade(new InventarioBanco(raiz()),raiz(),backup())).load();
+            flyway.baseline();flyway.migrate();
+            String conferencia=java.util.UUID.randomUUID().toString(),tentativa=java.util.UUID.randomUUID().toString();
+            try(var p=c.prepareStatement("INSERT INTO conferencias_email(id,viagem_id,selecao,snapshot,criada_em,expira_em) VALUES(?,102,'{}',?,CURRENT_TIMESTAMP,DATEADD('MINUTE',30,CURRENT_TIMESTAMP))")){p.setString(1,conferencia);p.setString(2,snapshot);p.executeUpdate();}
+            try(var p=c.prepareStatement("INSERT INTO tentativas_email(id,conferencia_id,viagem_id,snapshot,modo,situacao,motivo,criada_em) VALUES(?,?,102,?,'SIMULADO','SIMULADO','Fixture sintetica',CURRENT_TIMESTAMP)")){p.setString(1,tentativa);p.setString(2,conferencia);p.setString(3,snapshot);p.executeUpdate();}
+            Path atual=base.resolve("backup-antes-v8");BackupBanco.criar(c,raiz(),atual);ManutencaoBanco.migrar(c,raiz(),atual);
+            assertThat(escalar(c,"SELECT snapshot FROM tentativas_email")).isEqualTo(snapshot);assertThat(escalar(c,"SELECT ator FROM tentativas_email")).isEqualTo("LEGADO");
+            assertThat(escalar(c,"SELECT COUNT(*) FROM usuarios")).isEqualTo("0");assertThat(escalar(c,"SELECT COUNT(*) FROM processamentos")).isEqualTo("0");
             assertThat(Files.readString(raiz().resolve("legado.xml"))).isEqualTo(CteFixture.xml());
         }
     }

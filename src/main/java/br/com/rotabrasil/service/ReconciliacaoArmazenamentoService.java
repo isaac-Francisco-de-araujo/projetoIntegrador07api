@@ -117,8 +117,9 @@ public class ReconciliacaoArmazenamentoService {
     }
 
     private boolean compativel(Registro documento, OperacaoArquivo operacao) {
-        return documento.tipoValido() && operacao.hash.equals(documento.hash()) && operacao.numero.equals(documento.numero()) &&
-                documento.caminho() != null && Path.of(documento.caminho()).toAbsolutePath().normalize().equals(operacao.destino);
+        try{return documento.tipoValido() && operacao.hash.equals(documento.hash()) && operacao.numero.equals(documento.numero()) &&
+                documento.caminho() != null && arquivos.resolverRegistrado(documento.caminho()).equals(operacao.destino);
+        }catch(IOException|IllegalArgumentException ex){return false;}
     }
 
     private Pendencia pendencia(OperacaoArquivo operacao, Estado estado, Long documento) {

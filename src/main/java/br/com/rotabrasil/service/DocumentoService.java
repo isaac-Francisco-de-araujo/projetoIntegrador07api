@@ -24,6 +24,8 @@ import java.util.Optional;
 public class DocumentoService {
     private final DocumentoRepository repository;
     private final ExtratorDadosXml extrator;
+    @org.springframework.beans.factory.annotation.Value("${rotabrasil.arquivos.viagens:arquivos/viagens}")
+    private String raiz = "arquivos/viagens";
 
     public Documento buscarDocumento(Long id) {
         var documento = repository.findById(id)
@@ -89,13 +91,7 @@ public class DocumentoService {
             throw new ConflitoDocumentoException("Arquivo registrado sem caminho; reconciliação necessária");
         }
         try {
-            Path caminho = Path.of(documento.getCaminho());
-            if (!Files.isRegularFile(caminho, LinkOption.NOFOLLOW_LINKS)) {
-                throw new ConflitoDocumentoException("Arquivo registrado ausente ou inacessível; reconciliação necessária");
-            }
-            try (var entrada = Files.newInputStream(caminho)) {
-                return ConteudoXml.ler(entrada);
-            }
+            return LeituraSeguraArquivos.ler(Path.of(raiz),documento.getCaminho(),ConteudoXml.LIMITE_BYTES);
         } catch (IOException | IllegalArgumentException | ArquivoInvalidoException ex) {
             throw new ConflitoDocumentoException("Não foi possível conferir arquivo registrado; reconciliação necessária");
         }

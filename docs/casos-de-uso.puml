@@ -1,0 +1,100 @@
+@startuml
+left to right direction
+actor Operador
+actor "Sistema externo\n(produz XML/PDF)" as Externo
+rectangle RotaBrasil {
+  usecase "Selecionar e conferir ZIP\ncom várias viagens" as ZIP
+  usecase "Consultar diagnóstico por arquivo\netapa, origem, situação e ação" as Diagnosticar
+  usecase "Filtrar erros e pendências\ne revisar associações" as Revisar
+  usecase "Selecionar ZIP corrigido\ne executar nova conferência" as Corrigir
+  usecase "Associar PDFs manualmente\ne compartilhar faturas" as Associar
+  usecase "Confirmar importação\nsem sobrescrita" as Importar
+  usecase "Importar XML individual" as XML
+  usecase "Arquivar / restaurar\ndocumentos" as Arquivar
+  usecase "Escolher viagem, destinatário\ne anexos explícitos" as Escolher
+  usecase "Conferir seleção e integridade\nno servidor" as Conferir
+  usecase "Confirmar SIMULAÇÃO" as Confirmar
+  usecase "Registrar tentativa idempotente\ne snapshot antes do transporte" as Registrar
+  usecase "Executar transporte simulado\ne registrar resultado tratado" as Simular
+  usecase "Consultar tentativas, resultados\ne histórico legado" as Historico
+  usecase "Preparar e confirmar reenvio\nvinculado à tentativa anterior" as Reenvio
+  usecase "Inventariar, fazer backup\ne recuperar armazenamento" as Manutencao
+  usecase "Configurar remetente da operação\ne destino autorizado no backend" as Configurar
+  usecase "Testar e-mail simulado\ne acesso/gravação da pasta" as Testar
+  usecase "Informar destinatário da confirmação\nno upload manual" as DestinatarioAviso
+  usecase "Registrar eventos separados\ne avisos sem anexos fiscais" as Eventos
+  usecase "Simular avisos idempotentes\nsem enviar e-mail real" as Avisos
+  usecase "Exportar cópia de XMLs/PDFs\ncom SHA-256 e manifesto" as Exportar
+  usecase "Consultar arquivos exportados\ne pendências por item" as Exportados
+  usecase "Retomar somente a exportação\nsem reimportar ou reenviar" as Retomar
+  usecase "Consultar Central de Pendências\ncom filtros e paginação" as Central
+  usecase "Examinar impacto, causa conhecida\ne localização lógica segura" as Impacto
+  usecase "Copiar referências mínimas\npara suporte" as Suporte
+  usecase "Consultar evidência da resolução\ne diagnósticos anteriores" as Resolucao
+}
+Externo --> ZIP : arquivos fornecidos ao operador
+Operador --> ZIP
+ZIP ..> Diagnosticar : <<include>>
+Operador --> Diagnosticar
+Operador --> Revisar
+Operador --> Corrigir
+Corrigir ..> ZIP : <<include>>
+Revisar ..> Associar : <<include>>
+ZIP ..> Associar : <<include>> quando há PDFs
+Operador --> Importar
+Importar ..> ZIP : <<include>>
+Operador --> XML
+Operador --> Arquivar
+Operador --> Escolher
+Operador --> Conferir
+Conferir ..> Escolher : <<include>>
+Operador --> Confirmar
+Confirmar ..> Conferir : <<include>> revalidar
+Confirmar ..> Registrar : <<include>>
+Confirmar ..> Simular : <<include>> apenas tentativa nova
+Operador --> Historico
+Operador --> Reenvio
+Reenvio ..> Confirmar : <<include>> nova conferência
+Operador --> Manutencao
+Operador --> Configurar
+Operador --> Testar
+Testar ..> Configurar : <<include>> configuração salva
+Operador --> DestinatarioAviso
+ZIP ..> Eventos : <<include>> recebimento/conferência/pendências
+Importar ..> Eventos : <<include>> commit confirmado
+Avisos ..> Eventos : <<include>> snapshot e chave idempotente
+Operador --> Avisos
+Operador --> Exportar : ação manual
+Exportar ..> Importar : <<extend>> automático habilitado, importação nova
+Exportar ..> Eventos : <<include>> conclusão ou pendências
+Operador --> Exportados
+Operador --> Retomar
+Retomar ..> Exportados : <<include>> itens pendentes
+Retomar ..> Exportar : <<include>> preservando cópias anteriores
+Operador --> Central
+Central ..> Impacto : <<include>>
+Impacto ..> Diagnosticar : <<include>>
+Operador --> Suporte
+Suporte ..> Impacto : <<include>> sem documentos/credenciais
+Operador --> Resolucao
+Corrigir ..> Resolucao : <<extend>> após conferência válida vinculada
+Retomar ..> Resolucao : <<extend>> todos os itens confirmados
+note bottom of Simular
+  SIMULAÇÃO: nenhum e-mail real enviado.
+  Resultado desconhecido não repete automaticamente.
+  Fatura compartilhada não causa disparos adicionais.
+end note
+note bottom of RotaBrasil
+  Diagnóstico persistido; não é histórico de envio documental.
+  Vermelho: falha/bloqueio. Âmbar: pendência/incerteza. Verde: fato comprovado.
+  Fechar detalhes ou copiar suporte não resolve uma pendência.
+  Timeout não comprova falha; estado desconhecido não repete automaticamente.
+  Bloqueios impedem importação integral. Não há importação parcial implícita.
+  PDF: somente cabeçalho, sem validação estrutural/comercial.
+  Pasta escolhida fica no computador do backend, sob raiz autorizada.
+  Notificações: SIMULADAS; recebimento não significa importação concluída.
+  Sem login novo. Segurança existente preservada; desenvolvimento em loopback.
+  Outlook automático e notificações reais: integrações futuras.
+  RotaBrasil não gera documentos fiscais, faturas ou boletos.
+end note
+@enduml

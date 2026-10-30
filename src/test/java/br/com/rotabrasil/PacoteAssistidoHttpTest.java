@@ -28,6 +28,24 @@ import static org.assertj.core.api.Assertions.*;
     "spring.flyway.enabled=true","spring.jpa.hibernate.ddl-auto=validate","spring.h2.console.enabled=false"})
 @DirtiesContext(classMode=DirtiesContext.ClassMode.AFTER_CLASS)
 class PacoteAssistidoHttpTest {
+    @Test void diagnosticoHttpPorArquivoBloqueiaConfirmacaoMesmoIgnorandoTela()throws Exception {
+        var arquivos=new LinkedHashMap<String,byte[]>();arquivos.put("cte.xml",texto(CteFixture.xml()));arquivos.put("cobrancas/fatura.pdf",texto("invalido"));arquivos.put("comprovantes/valido.pdf",PDF);
+        byte[] bytes=zip(arquivos);var resposta=enviar("/api/pacotes/inspecao",bytes,null);
+        assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);var d=resposta.getBody().get("diagnostico");
+        assertThat(d.get("arquivos").size()).isEqualTo(2);assertThat(d.get("invalidos").asInt()).isEqualTo(1);assertThat(d.get("pendentes").asInt()).isEqualTo(1);
+        var item=d.get("diagnosticos").get(1);assertThat(item.get("arquivo").asText()).isEqualTo("fatura.pdf");assertThat(item.get("caminhoInterno").asText()).isEqualTo("cobrancas/fatura.pdf");
+        assertThat(item.get("etapa").asText()).isEqualTo("VALIDACAO_PDF");assertThat(item.get("situacao").asText()).isEqualTo("INVALIDO");
+        assertThat(confirmar(bytes,Map.of("sha256",d.get("sha256").asText(),"vinculos",List.of())).getBody().get("diagnostico").get("conteudoValido").asBoolean()).isFalse();vazio();
+        arquivos.put("cobrancas/fatura.pdf",PDF);byte[] corrigido=zip(arquivos);var novo=inspecao(corrigido);
+        var semAssociacao=confirmar(corrigido,Map.of("sha256",novo.get("sha256").asText(),"vinculos",List.of()));
+        assertThat(semAssociacao.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        var falta=semAssociacao.getBody().get("diagnostico").get("diagnosticos").get(1);
+        assertThat(falta.get("caminhoInterno").asText()).isEqualTo("cobrancas/fatura.pdf");assertThat(falta.get("codigo").asText()).isEqualTo("ASSOCIACAO_INVALIDA");
+        var config=Map.of("sha256",novo.get("sha256").asText(),"vinculos",List.of(Map.of("arquivoId","a1","finalidade","FATURA","xmlIds",List.of("a0")),Map.of("arquivoId","a2","finalidade","VIAGEM","xmlIds",List.of("a0"))));
+        assertThat(confirmar(corrigido,config).getStatusCode()).isEqualTo(HttpStatus.OK);assertThat(contar("anexos")).isEqualTo(2);assertThat(contar("envios")).isZero();
+        var anexo=http.getForObject("/api/viagens/"+jdbc.queryForObject("SELECT id FROM viagens",Long.class)+"/anexos",JsonNode.class);
+        assertThat(anexo.get(0).get("nomeArquivo").asText()).doesNotContain("/");
+    }
     private static final Path RAIZ=temporario();
     private static final byte[] PDF="%PDF-1.4\n% PDF sintético, sem valor fiscal\n%%EOF".getBytes(StandardCharsets.UTF_8);
     @Autowired TestRestTemplate http;
@@ -70,6 +88,17 @@ class PacoteAssistidoHttpTest {
         for(String tabela:List.of("clientes","viagens","documentos","pacotes","anexos","envios"))assertThat(contar(tabela)).as(tabela).isZero();
         try(var arquivos=Files.walk(RAIZ)){assertThat(arquivos.filter(Files::isRegularFile).count()).isZero();}
     }
+    @Test void pacoteHistoricoNaoReutilizaResultadoParcialNemRestauraClienteExcluido()throws Exception{
+        byte[] bytes=pacote();var resultado=importar(bytes);
+        Long clienteId=jdbc.queryForObject("SELECT cliente_id FROM viagens WHERE id=?",Long.class,resultado.get("documentos").get(0).get("viagemId").asLong());
+        var conferencia=http.getForEntity("/api/clientes/"+clienteId+"/conferencia-exclusao",JsonNode.class);
+        assertThat(conferencia.getStatusCode()).isEqualTo(HttpStatus.OK);
+        var exclusao=http.exchange("/api/clientes/"+clienteId+"?confirmado=true&conferenciaSha256="+conferencia.getBody().get("conferenciaSha256").asText(),HttpMethod.DELETE,HttpEntity.EMPTY,JsonNode.class);
+        assertThat(exclusao.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(contar("clientes")).isZero();assertThat(contar("pacotes")).isEqualTo(1);
+        assertThat(confirmar(bytes,config(inspecao(bytes),List.of("a0","a1"),"FATURA")).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(contar("clientes")).isZero();assertThat(contar("documentos")).isZero();
+    }
     @Test void confereSemGravarEFaturaCompartilhadaPossuiUmArquivoEDoisVinculos()throws Exception{
         byte[] bytes=pacote();var i=inspecao(bytes);assertThat(i.get("arquivos").size()).isEqualTo(3);vazio();
         var resultado=importar(bytes);assertThat(resultado.get("documentos").size()).isEqualTo(2);assertThat(resultado.get("anexos").size()).isEqualTo(1);
@@ -98,12 +127,19 @@ class PacoteAssistidoHttpTest {
         jdbc.execute("ALTER TABLE anexos ADD CONSTRAINT teste_falha_pdf CHECK (nome_arquivo <> 'fatura.pdf')");
         byte[] bytes=pacote();var response=confirmar(bytes,config(inspecao(bytes),List.of("a0","a1"),"FATURA"));
         assertThat(response.getStatusCode().is2xxSuccessful()).isFalse();vazio();
+        var d=response.getBody().get("diagnostico");assertThat(d.get("situacao").asText()).isEqualTo("IMPORTACAO_REVERTIDA");
+        assertThat(d.get("localizacao").asText()).contains("Temporário de leitura removido após falha");
+        var item=d.get("diagnosticos").get(2);assertThat(item.get("arquivo").asText()).isEqualTo("fatura.pdf");
+        assertThat(item.get("caminhoInterno").asText()).isEqualTo("fatura.pdf");assertThat(item.get("etapa").asText()).isEqualTo("REGISTRO_PDF");assertThat(item.get("situacao").asText()).isEqualTo("ERRO");
     }
     @Test void falhaAoPublicarPdfDesfazXmlsJaPublicadosSemSobrescrever()throws Exception{
         byte[] bytes=pacote();var i=inspecao(bytes);
         Files.createDirectory(RAIZ.resolve("66213")); // Simular outro processo ocupando o destino antes da publicação.
         jdbc.execute("CREATE TRIGGER falha_pdf BEFORE INSERT ON anexos FOR EACH ROW CALL 'br.com.rotabrasil.PacoteAssistidoHttpTest$DestinoConflitante'");
-        assertThat(confirmar(bytes,config(i,List.of("a0","a1"),"FATURA")).getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        var falha=confirmar(bytes,config(i,List.of("a0","a1"),"FATURA"));
+        assertThat(falha.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(falha.getBody().get("diagnostico").get("diagnosticos").get(2).get("etapa").asText()).isEqualTo("PUBLICACAO_ARQUIVO");
+        assertThat(falha.getBody().toString()).doesNotContain(RAIZ.toString(),"original preservado","stackTrace");
         assertThat(contar("documentos")).isZero();assertThat(contar("pacotes")).isZero();
         try(var arquivos=Files.walk(RAIZ)){var restantes=arquivos.filter(Files::isRegularFile).toList();assertThat(restantes).hasSize(1);assertThat(Files.readString(restantes.getFirst())).isEqualTo("original preservado");}
     }

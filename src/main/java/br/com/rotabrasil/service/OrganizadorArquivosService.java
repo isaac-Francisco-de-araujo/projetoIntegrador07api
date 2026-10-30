@@ -23,6 +23,10 @@ import java.util.UUID;
 @Service
 public class OrganizadorArquivosService {
     private final Path raizViagens;
+    @Value("${rotabrasil.arquivos.caminhos-relativos:false}")
+    private boolean caminhosRelativos;
+    public String caminhoPersistivel(Path arquivo){return caminhosRelativos?raizViagens.relativize(arquivo.toAbsolutePath().normalize()).toString().replace('\\','/'):arquivo.toString();}
+    public Path resolverRegistrado(String caminho) throws IOException {return LeituraSeguraArquivos.resolver(raizViagens,caminho);}
 
     public OrganizadorArquivosService(@Value("${rotabrasil.arquivos.viagens:arquivos/viagens}") String raiz) {
         raizViagens = Paths.get(raiz).toAbsolutePath().normalize();
@@ -164,8 +168,8 @@ public class OrganizadorArquivosService {
 
     boolean confere(Path caminho, String hash) throws IOException {
         if (!Files.isRegularFile(caminho, LinkOption.NOFOLLOW_LINKS)) return false;
-        try (var entrada = Files.newInputStream(caminho)) {
-            return hash.equals(ConteudoXml.sha256(ConteudoXml.ler(entrada)));
+        try {
+            return hash.equals(ConteudoXml.sha256(LeituraSeguraArquivos.ler(raizViagens,caminho.toString(),ConteudoXml.LIMITE_BYTES)));
         } catch (ArquivoInvalidoException ex) {
             return false;
         }
@@ -236,6 +240,7 @@ public class OrganizadorArquivosService {
     }
 
     private void validarPasta(Path pasta) throws IOException {
+        LeituraSeguraArquivos.resolver(raizViagens,pasta.resolve("verificacao-interna").toString());
         if (!Files.isDirectory(pasta, LinkOption.NOFOLLOW_LINKS) ||
                 !pasta.toRealPath().startsWith(raizViagens.toRealPath())) {
             throw new IOException("Diretório fora da raiz ou link simbólico");

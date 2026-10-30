@@ -19,7 +19,10 @@ public class DocumentoController {
     @GetMapping("/api/viagens/{viagemId}/documentos")
     public List<DocumentoResponse> listarPorViagem(@PathVariable @Positive Long viagemId) { return consultas.listarDocumentosDaViagem(viagemId); }
     @PostMapping(value = "/api/processamento/xml", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ProcessamentoXmlResponse processarXml(@RequestPart("arquivo") MultipartFile arquivo) { return processamentoService.processarArquivoXml(arquivo); }
+    public ProcessamentoXmlResponse processarXml(@RequestPart("arquivo") MultipartFile arquivo,jakarta.servlet.http.HttpServletRequest request) {
+        var resultado=processamentoService.processarArquivoXml(arquivo);
+        request.setAttribute("auditoriaReferencia",java.util.Map.of("documentoId",resultado.documentoId(),"viagemId",resultado.viagemId()));return resultado;
+    }
     @DeleteMapping("/api/documentos/{id}") @ResponseStatus(HttpStatus.NO_CONTENT)
     public void arquivar(@PathVariable @Positive Long id) { consultas.arquivarDocumento(id); }
     @PostMapping("/api/documentos/{id}/restaurar")
