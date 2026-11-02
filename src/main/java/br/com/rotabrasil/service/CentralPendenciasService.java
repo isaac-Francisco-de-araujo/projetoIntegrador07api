@@ -13,7 +13,7 @@ public class CentralPendenciasService {
     private final JdbcTemplate jdbc;private final DiagnosticoOperacaoService diagnosticos;
     public record Resumo(long falhas,long atencao,long emProcessamento,long resolvidos){}
     public record Pagina(int pagina,int tamanho,long total,List<DiagnosticoOperacao> itens,Resumo resumo){}
-    private static final String BASE="""
+    static final String BASE="""
         WITH processos AS (
           SELECT 'PROCESSAMENTO' AS origem,id,criado_em AS data,
             CASE WHEN resolvido_em IS NOT NULL OR situacao IN ('IMPORTADO','REUTILIZADO','CONFERIDA') THEN 'RESOLVIDO'
@@ -38,8 +38,10 @@ public class CentralPendenciasService {
             CASE WHEN t.situacao IN ('SIMULADO','ACEITO_SMTP') OR (t.situacao='FALHA' AND EXISTS(SELECT 1 FROM tentativas_email s WHERE s.anterior_id=t.id AND s.situacao IN ('SIMULADO','ACEITO_SMTP'))) THEN 'RESOLVIDO' ELSE 'PRECISA_ACAO' END,
             CASE WHEN t.situacao='FALHA' THEN 'ERRO' ELSE 'ATENCAO' END FROM tentativas_email t
           UNION ALL
-          SELECT 'NOTIFICACAO',id,criada_em,'PRECISA_ACAO',CASE WHEN situacao='FALHA' THEN 'ERRO' ELSE 'ATENCAO' END
-          FROM notificacoes_recebimento WHERE situacao IN ('DESCONHECIDO','FALHA')
+          SELECT 'NOTIFICACAO',n.id,n.criada_em,
+            CASE WHEN n.situacao IN ('SIMULADO','ACEITO_SMTP') OR (n.situacao='FALHA' AND EXISTS(SELECT 1 FROM notificacoes_recebimento s WHERE s.anterior_id=n.id AND s.situacao IN ('SIMULADO','ACEITO_SMTP'))) THEN 'RESOLVIDO' ELSE 'PRECISA_ACAO' END,
+            CASE WHEN n.situacao='FALHA' THEN 'ERRO' ELSE 'ATENCAO' END
+          FROM notificacoes_recebimento n WHERE n.evento='CONFIRMACAO_MOTORISTA' OR n.situacao IN ('DESCONHECIDO','FALHA')
         )
         """;
     public Resumo resumo(){

@@ -1,4 +1,8 @@
 const paginas = {
+  saude: { titulo:'Saúde do sistema', descricao:'Verificações locais e evidências, sem testes externos automáticos.', contexto:'OPERAÇÃO / DISPONIBILIDADE' },
+  busca: { titulo:'Busca integrada', descricao:'Clientes, viagens, documentos e pacotes com paginação no servidor.', contexto:'ACERVO / CONSULTA' },
+  fila: { titulo:'Fila compartilhada', descricao:'Situação técnica, trabalho e responsabilidade dos históricos existentes.', contexto:'OPERAÇÃO / EQUIPE' },
+  administracao: { titulo:'Operadores', descricao:'Contas individuais, permissões e redefinição de acesso.', contexto:'ADMINISTRAÇÃO / ACESSO' },
   inicio: { titulo:'Visão geral', descricao:'Bem-vindo ao seu workspace. Vamos colocar tudo em movimento.', contexto:'SUA OPERAÇÃO. UMA NOVA PERSPECTIVA.' },
   pacotes: { titulo:'Importar ZIP', descricao:'Confira pacotes, visualize os PDFs e gerencie os arquivos já importados.', contexto:'ENTRADA ASSISTIDA / ZIP' },
   importacao: { titulo:'Importar XML ou PDF', descricao:'Um CT-e individual ou um PDF vinculado a uma viagem existente.', contexto:'ENTRADA INDIVIDUAL / DOCUMENTOS' },

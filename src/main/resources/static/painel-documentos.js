@@ -84,7 +84,8 @@ export async function atualizar(viagemId = null) {
   for (const id of ['total-clientes','total-viagens','total-documentos','total-pendencias']) $(id).textContent = '—';
   consultas.carregar(); state.carregando = true; invalidarPrevia(); atualizarSelecao();
   try {
-    const [people, trips, resumo] = await Promise.all([api('/api/clientes'), api('/api/viagens'), api('/api/consulta/resumo')]);
+    const [peoplePage, tripsPage, resumo] = await Promise.all([api('/api/busca?entidade=CLIENTE&tamanho=100&ordem=nome&direcao=ASC'), api('/api/busca?entidade=VIAGEM&tamanho=100&ordem=data&direcao=DESC'), api('/api/consulta/resumo')]);
+    const people=peoplePage.itens,trips=tripsPage.itens;
     if (version !== atualizacao) return;
     state.clientes = people; state.viagens = trips; state.documentos = [];
     $('total-clientes').textContent = String(resumo.clientes); $('total-viagens').textContent = String(resumo.viagens); $('total-documentos').textContent = String(resumo.documentos);
@@ -113,7 +114,8 @@ export async function atualizar(viagemId = null) {
 }
 
 async function confirmarExclusao(tipo, id, nome, origem, viagensAfetadas = []) {
-  let conferencia;
+  let conferencia,etag;
+  if(tipo==='viagem')try{await api(`/api/viagens/${id}`,{aoResponder:r=>{etag=r.headers.get('ETag');}});}catch(e){avisar(e,true);return;}
   if(tipo==='cliente') {
     origem.disabled=true;
     try {
@@ -133,7 +135,7 @@ async function confirmarExclusao(tipo, id, nome, origem, viagensAfetadas = []) {
       if(arquivo||conferencia)invalidarPrevia();
       const rota={cliente:'clientes',viagem:'viagens',documento:'documentos',anexo:'anexos'}[tipo];
       const parametros=conferencia?'?'+new URLSearchParams({confirmado:'true',conferenciaSha256:conferencia.conferenciaSha256}):'';
-      await api(`/api/${rota}/${encodeURIComponent(id)}${parametros}`,{method:'DELETE'});
+      await api(`/api/${rota}/${encodeURIComponent(id)}${parametros}`,{method:'DELETE',headers:etag?{'If-Match':etag}:{}});
       avisar(conferencia?'Cliente, viagens e documentos exclusivos excluídos com sucesso.':arquivo?'Documento excluído da lista ativa por arquivamento. É possível restaurá-lo.':'Viagem excluída com sucesso.');
       try{await atualizar();}catch{avisar('Exclusão concluída, mas a atualização falhou. Use Atualizar dados antes de continuar.',true);}
     }
@@ -177,8 +179,10 @@ function renderizarAnexos() {
 }
 
 export function iniciarDocumentos(){
+  let timerSeletor,seqSeletor=0;
+  $('buscar-seletor-viagem').addEventListener('input',()=>{const seq=++seqSeletor;clearTimeout(timerSeletor);timerSeletor=setTimeout(async()=>{try{const r=await api('/api/busca?'+new URLSearchParams({entidade:'VIAGEM',busca:$('buscar-seletor-viagem').value,tamanho:100}));if(seq!==seqSeletor)return;const atual=state.viagens.find(v=>String(v.id)===state.viagem);state.viagens=r.itens;if(atual&&!state.viagens.some(v=>v.id===atual.id))state.viagens.push(atual);const select=$('viagem-selecionada');select.replaceChildren(new Option('Escolha uma viagem',''));for(const v of state.viagens)select.add(new Option(`CT-e ${v.numero} · ${v.clienteNome||'#'+v.clienteId}`,String(v.id)));select.value=state.viagem;document.dispatchEvent(new Event('dados-atualizados'));$('estado-seletor-viagem').textContent=`${r.total} resultados · até 100 opções; refine a pesquisa se necessário.`;}catch(e){if(seq===seqSeletor)$('estado-seletor-viagem').textContent=`Seletores indisponíveis: ${e.message}`;}},300);});
   consultas=criarConsultas({
-    abrirViagem:id=>{ $('viagem-selecionada').value=id;carregarDocumentos(id);navegarPara('documentos',{foco:'viagem-selecionada'}); },
+    abrirViagem:async id=>{if(!state.viagens.some(v=>String(v.id)===id)){const v=await api(`/api/viagens/${id}`);state.viagens.push(v);$('viagem-selecionada').add(new Option(`CT-e ${v.numero} · #${v.id}`,id));} $('viagem-selecionada').value=id;carregarDocumentos(id);navegarPara('documentos',{foco:'viagem-selecionada'}); },
     excluirCliente:(cliente,origem)=>confirmarExclusao('cliente',cliente.id,cliente.nome,origem),
     excluirViagem:(viagem,origem)=>confirmarExclusao('viagem',viagem.id,viagem.numero,origem)
   });

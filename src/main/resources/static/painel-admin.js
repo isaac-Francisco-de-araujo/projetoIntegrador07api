@@ -5,12 +5,17 @@ async function usuarios(){
     const row=element('article');row.append(element('strong',`${u.USUARIO} · ${u.PAPEL} · ${u.ATIVO?'Ativo':'Desativado'}`));
     const papel=element('select');papel.setAttribute('aria-label',`Papel de ${u.USUARIO}`);for(const p of ['CONSULTA','OPERADOR','ADMIN'])papel.add(new Option(p,p));papel.value=u.PAPEL;
     const ativo=element('input');ativo.type='checkbox';ativo.checked=u.ATIVO;const label=element('label');label.append(ativo,element('span','Ativo'));
-    const salvar=element('button','Salvar permissões');salvar.type='button';salvar.addEventListener('click',async()=>{salvar.disabled=true;try{await api(`/api/admin/usuarios/${u.ID}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({papel:papel.value,ativo:ativo.checked})});await usuarios();avisar('Permissões atualizadas; aplicadas às sessões abertas na próxima requisição.');}catch(e){avisar(e.message,true);}finally{salvar.disabled=false;}});
-    row.append(papel,label,salvar);target.append(row);
+    const salvar=element('button','Salvar permissões');salvar.type='button';salvar.addEventListener('click',async()=>{salvar.disabled=true;try{await api(`/api/admin/usuarios/${u.ID}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({papel:papel.value,ativo:ativo.checked,versao:u.VERSAO})});await usuarios();avisar('Permissões atualizadas; aplicadas às sessões abertas na próxima requisição.');}catch(e){avisar(e,true);}finally{salvar.disabled=false;}});
+    const senha=element('input');senha.type='password';senha.minLength=12;senha.maxLength=72;senha.autocomplete='new-password';senha.setAttribute('aria-label',`Nova senha de ${u.USUARIO}`);
+    const redefinir=element('button','Redefinir acesso');redefinir.type='button';redefinir.addEventListener('click',async()=>{if(!senha.reportValidity()||!senha.value)return;if(!confirm(`Redefinir o acesso de ${u.USUARIO} e encerrar suas sessões anteriores?`))return;redefinir.disabled=true;try{await api(`/api/admin/usuarios/${u.ID}/senha`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({senha:senha.value,versao:u.VERSAO})});await usuarios();avisar('Acesso redefinido.');}catch(e){avisar(e,true);}finally{senha.value='';redefinir.disabled=false;}});
+    const labelSenha=element('label','Nova senha (mínimo 12 caracteres)');labelSenha.append(senha);
+    row.append(papel,label,salvar,labelSenha,redefinir);target.append(row);
   }
 }
 export async function iniciarAdministracao(){
-  if(!podeAdministrar())return;$('administracao').hidden=false;
+  if(!podeAdministrar()){$('administracao').replaceChildren(element('h2','Acesso negado'),element('p','Administração de operadores exige papel ADMIN. Procure o administrador.'));return;}
+  const link=element('a','Operadores');link.href='#administracao';document.querySelector('.sidebar nav').append(link);
+  $('recarregar-usuarios').addEventListener('click',()=>usuarios().catch(e=>avisar(e,true)));
   $('form-usuario').addEventListener('submit',async event=>{
     event.preventDefault();const button=event.submitter;button.disabled=true;
     try{await api('/api/admin/usuarios',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({usuario:$('novo-usuario').value,senha:$('nova-senha').value,papel:$('novo-papel').value})});$('form-usuario').reset();await usuarios();avisar('Operador cadastrado.');}

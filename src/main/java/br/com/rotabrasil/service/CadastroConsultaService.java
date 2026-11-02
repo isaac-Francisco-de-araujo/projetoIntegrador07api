@@ -24,6 +24,7 @@ public class CadastroConsultaService {
     private final AnexoRepository anexosRepository;
     private final CoordenacaoImportacaoService coordenacao;
     private final ExclusaoClienteService exclusaoClientes;
+    private final EdicaoCompartilhada edicao;
 
     public List<ClienteResponse> listarClientes() { return clientes.listarClientes().stream().map(ClienteResponse::de).toList(); }
     public ClienteResponse buscarCliente(Long id) { return ClienteResponse.de(clientes.buscarCliente(id)); }
@@ -45,6 +46,7 @@ public class CadastroConsultaService {
     public ClienteResponse atualizarCliente(Long id, ClienteRequest dados) {
         coordenacao.bloquear();
         Cliente atual = clientes.buscarCliente(id);
+        edicao.conferir(ClienteResponse.de(atual));
         if (!Objects.equals(atual.getCnpj(), dados.cnpj()) &&
                 (viagensRepository.existsByClienteId(id) || enviosRepository.existsByClienteId(id))) {
             throw new ConflitoRecursoException("CNPJ de cliente vinculado não pode ser alterado; reconciliação necessária");
@@ -67,6 +69,7 @@ public class CadastroConsultaService {
     public ViagemResponse atualizarViagem(Long id, ViagemRequest dados) {
         coordenacao.bloquear();
         Viagem atual = viagens.buscarViagem(id);
+        edicao.conferir(ViagemResponse.de(atual));
         boolean mudaIdentidade = !Objects.equals(atual.getNumero(), dados.numero()) ||
                 !Objects.equals(atual.getCliente().getId(), dados.clienteId());
         if (mudaIdentidade && (documentosRepository.existsByViagemId(id) || anexosRepository.existsByViagensId(id) || enviosRepository.existsByViagemId(id))) {
@@ -79,6 +82,7 @@ public class CadastroConsultaService {
     public void excluirViagem(Long id) {
         coordenacao.bloquear();
         var viagem = viagens.buscarViagem(id);
+        edicao.conferir(ViagemResponse.de(viagem));
         if (documentosRepository.existsByViagemId(id) || anexosRepository.existsByViagensId(id) || enviosRepository.existsByViagemId(id)) {
             throw new ConflitoRecursoException("Viagem possui documentos ou histórico de envio e não pode ser excluída");
         }

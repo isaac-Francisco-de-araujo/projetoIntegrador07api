@@ -3,7 +3,16 @@
 **Evolução V10:** [Diagnóstico e Recuperação](diagnostico-recuperacao.md) amplia a
 exibição dos resultados, centraliza pendências e preserva cada tentativa de cópia.
 A recuperação da exportação apenas registra eventos; não executa seu transporte.
-O código atual exige V10, com migração operacional separadamente autorizada.
+O código atual exige V11, com migração operacional separadamente autorizada.
+
+**Etapa E-mail V11:** [Confirmação manual ao motorista](confirmacao-motorista.md)
+implementa conferência, correção de destinatário, tentativa idempotente e reenvio no
+histórico existente. REAL é condicionado a OAuth2, segurança ativa e opt-in externo;
+o padrão continua SIMULADO. Os capítulos V9 abaixo descrevem os avisos internos legados.
+
+**Estabilização atual:** [evidências e roteiro](estabilizacao.md). Não executar JAR
+antigo com estáticos atuais sobrepostos. `GET /api/versao` identifica contrato,
+build e hashes do empacotamento; a inicialização detecta backend incompatível.
 
 ## Decisão confirmada
 
@@ -14,8 +23,9 @@ no upload, porque os bytes do ZIP não identificam o remetente de um e-mail.
 
 O destinatário dos documentos do cliente, selecionado na Central de envios,
 continua independente. Não é preenchido nem substituído pelo endereço da operação.
-Recebimento automático Outlook e envio real das novas notificações são etapas
-futuras. O transporte SMTP documental existente e suas proteções foram preservados.
+Recebimento automático Outlook não integra o escopo. A confirmação manual REAL
+está implementada na V11, mas sua homologação depende da identificação/autorização
+da conta e do acesso protegido. O transporte documental e suas proteções foram preservados.
 
 ## Usar a aba Configurações
 
@@ -48,7 +58,7 @@ Não há seletor de disco local do navegador nem campo HTTP de caminho arbitrár
 Downloads individuais existentes continuam disponíveis quando o operador precisa
 guardar um arquivo no computador do navegador.
 
-O responsável cria uma raiz separada do acervo e a fornece externamente:
+O responsável cria uma raiz fora do checkout e separada do acervo e a fornece externamente:
 
 ```powershell
 $env:ROTABRASIL_EXPORTACAO_RAIZ = 'C:/RotaBrasil/Exportacoes'
@@ -62,6 +72,9 @@ Somente nomes de subpastas de até 60 caracteres, com letras ASCII, números,
 hífen e sublinhado, são aceitos. Caminhos absolutos, separadores, `..`, links
 simbólicos e nomes reservados do Windows são recusados. A API lista até 100
 subpastas elegíveis, além da própria raiz. A raiz e o acervo não podem conter um ao outro.
+Na revisão atual a raiz também não pode sobrepor o checkout encontrado nos ancestrais
+do diretório de execução ou da origem do JAR/classes. Configuração incompatível
+interrompe a inicialização com orientação explícita; não há mudança automática do destino.
 
 **Testar acesso e gravação** cria um arquivo sintético temporário e um hard link
 na pasta salva, confere a publicação e remove os temporários. A exportação usa
@@ -145,7 +158,7 @@ Configurações e use **Exportar arquivos** para nova exportação deliberada.
 Não há nova importação, envio de documentos, repetição de notificações ou retomada
 automática no reinício.
 
-## Notificações de recebimento
+## Avisos internos por evento — histórico V9 preservado
 
 Antes de **Conferir ZIP**, informe quem deve receber a confirmação e, se desejar,
 marque **Simular os avisos desta operação**. O remetente deve estar salvo.
@@ -171,16 +184,17 @@ contagens mínimas e referência. **Ver avisos**, no pacote importado, permite
 consultar o histórico após recarga/reinício e simular individualmente um aviso
 `PENDENTE`. Os testes de e-mail da configuração têm histórico próprio, separado.
 
-As novas notificações são **sempre SIMULADAS**, inclusive se o transporte documental
-estiver REAL. O contrato de transporte foi reutilizado com mensagem de metadados
+Os avisos internos por evento são **sempre SIMULADOS**, inclusive se o transporte documental
+estiver REAL. A confirmação manual `CONFIRMACAO_MOTORISTA` da V11 é separada desses
+eventos, no mesmo histórico. O contrato de transporte foi reutilizado com mensagem de metadados
 separada de `MensagemPreparada` e sem anexos. O teste não verifica autenticação
 ou conectividade do Outlook e não abre SMTP. Não existe campo de senha na tela;
 TLS, verificação de identidade e configuração externa do SMTP documental permanecem.
 
-Para ativar notificações reais futuramente, será necessário habilitar o adaptador
-de metadados com autenticação externa compatível com a conta Outlook, homologar
-remetente/TLS e implementar confirmação explícita do operador para o modo real.
-Salvar um endereço ou marcar uma simulação não autoriza essa ativação.
+Para ativar a confirmação REAL, siga o [contrato V11](confirmacao-motorista.md):
+identificar a conta, configurar OAuth2 externo, manter segurança e conferir/confirmar
+explicitamente cada mensagem. Salvar endereço ou marcar simulação não autoriza REAL.
+Não foi executado envio externo nem homologação da conta nesta entrega.
 
 ## API
 
@@ -215,7 +229,7 @@ envio documental. Não há senha nesses registros. Inventário/fingerprint abran
 as novas tabelas; o backup do H2 preserva seus dados. Os arquivos da pasta de
 exportação são cópias externas e não integram o backup do acervo interno.
 
-A etapa descrita exigia V9; o código atual exige V10. A versão do banco em uso deve ser verificada separadamente;
+A etapa descrita exigia V9; o código atual exige V11. A versão do banco em uso deve ser verificada separadamente;
 nenhum banco operacional foi migrado nesta tarefa. Para banco existente, mantenha
 Flyway desligado e siga o procedimento de autorização, inventário e backup verificado
 em [Banco e migrações](etapa4-banco-migracoes.md). Não use `clean`, `repair`, alteração
@@ -264,11 +278,12 @@ a dependência reproduzível das ferramentas do repositório permanece em `scrip
 
 ### Decisões pendentes para operação
 
-1. Autorizar e executar separadamente a migração V9 do banco existente, com backup
+1. Autorizar e executar separadamente a migração exigida pelo código atual (V11) do banco existente, com backup
    verificado; nenhuma base operacional foi atualizada pela implementação/testes.
 2. Definir e conceder acesso à raiz externa de exportação no ambiente de uso e
    executar o teste de gravação nesse ambiente.
 3. Homologar SMTP/autenticação da conta Outlook para futuras notificações reais.
    Não houve envio real, armazenamento de senha pela tela ou relaxamento de TLS.
-4. Recebimento automático de mensagens Outlook continua uma integração futura;
-   os ZIPs e os destinatários de confirmação são selecionados manualmente.
+O fluxo combinado é baixar/importar o ZIP e informar seu destinatário manualmente.
+A Etapa E-mail posterior enviará confirmação real ao motorista pela conta configurada;
+leitura automática de mensagens e criação de login não são requisitos desta entrega.

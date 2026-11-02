@@ -4,12 +4,12 @@ const ultimos=new WeakMap();
 export const referenciaLocal=()=>globalThis.crypto?.randomUUID?.()||`interface-${Date.now()}`;
 export function diagnosticoLocal(error,{codigo='INTERFACE_INDISPONIVEL',mensagem}={}){
   if(error?.diagnosticoOperacao)return error.diagnosticoOperacao;
-  const incerto=error?.incerto!==false;
+  const incerto=error?.incerto===true,consulta=error?.metodo==='GET';
   return {operacaoId:error?.referencia||referenciaLocal(),correlacaoId:error?.correlacaoId||null,dataHora:new Date().toISOString(),versao:'frontend / diagnostico-V10',origem:'INTERFACE',
     pacote:null,etapa:'COMUNICACAO',codigo:error?.codigo||codigo,gravidade:incerto?'ATENCAO':'ERRO',mensagem:mensagem||error?.message||'Não foi possível concluir a consulta.',
-    causaConhecida:'Não foi possível identificar a causa. Use a referência da operação para suporte.',orientacao:'Consulte Processamentos e o estado atual antes de repetir uma alteração.',
-    situacao:'RESULTADO_NAO_CONFIRMADO',estado:'PRECISA_ACAO',impacto:'A resposta não confirma o resultado da operação. Não se presume falha, perda de documentos ou envio concluído.',
-    problemas:[],acoes:[{codigo:'ABRIR_CENTRAL',rotulo:'Consultar histórico e pendências'},{codigo:'COPIAR_SUPORTE',rotulo:'Copiar informações para suporte'}],recuperacoes:[]};
+    causaConhecida:'Não foi possível identificar a causa. Use a referência da operação para suporte.',orientacao:consulta?'Tente carregar novamente. Se persistir, consulte os detalhes e confira a versão do servidor.':incerto?'Consulte Processamentos e o estado atual antes de repetir uma alteração.':'Revise os dados e as permissões antes de tentar novamente.',
+    situacao:consulta?'CONSULTA_INDISPONIVEL':incerto?'RESULTADO_NAO_CONFIRMADO':'OPERACAO_RECUSADA',estado:'PRECISA_ACAO',impacto:consulta?'A consulta não alterou documentos nem configurações.':incerto?'A resposta não confirma o resultado da alteração. Não repita automaticamente.':'A operação foi recusada; não foi apresentado sucesso.',
+    problemas:[],acoes:[...(!consulta&&incerto?[{codigo:'ABRIR_CENTRAL',rotulo:'Consultar histórico e pendências'}]:[]),{codigo:'COPIAR_SUPORTE',rotulo:'Copiar informações para suporte'}],recuperacoes:[]};
 }
 export function informacoesSuporte(d){
   const simples=valor=>valor==null?null:String(valor).replace(/[\u0000-\u001f\u007f]/g,'').slice(0,255);
@@ -57,5 +57,5 @@ export function renderizarDiagnostico(alvo,d,{substituir=true,compacto=false}={}
   if(ultimos.get(alvo)!==chave){ultimos.set(alvo,chave);const anuncio=document.getElementById('anuncios-diagnostico');if(anuncio&&classe==='erro')anuncio.textContent=`Erro: ${d.mensagem} Etapa ${d.etapa}. Consulte o diagnóstico e as ações disponíveis.`;}
   return artigo;
 }
-export function apresentarErro(alvo,error){const card=renderizarDiagnostico(alvo,diagnosticoLocal(error));if(alvo&&error?.incerto&&error?.metodo==='GET')alvo.dataset.falhaConsulta=error.rota;return card;}
+export function apresentarErro(alvo,error,{tentarNovamente}={}){const card=renderizarDiagnostico(alvo,diagnosticoLocal(error));if(card){const detalhes=card.querySelector('details');if(error?.rota)detalhes.append(node('p',`${error.metodo} ${error.rota}${error.status?' · HTTP '+error.status:''}`));if(error?.detalhes)detalhes.append(node('p',error.detalhes));if(tentarNovamente){const button=node('button','Tentar novamente','button secondary');button.type='button';button.addEventListener('click',tentarNovamente);card.querySelector('.diag-acoes').prepend(button);}}if(alvo&&error?.metodo==='GET')alvo.dataset.falhaConsulta=error.rota;return card;}
 document.addEventListener('consulta-confirmada',event=>{for(const alvo of document.querySelectorAll('[data-falha-consulta]'))if(alvo.dataset.falhaConsulta===event.detail.rota){alvo.replaceChildren();delete alvo.dataset.falhaConsulta;}});

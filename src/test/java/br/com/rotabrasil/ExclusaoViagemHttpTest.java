@@ -34,7 +34,7 @@ class ExclusaoViagemHttpTest {
         var viagem=http.postForEntity("/api/viagens",Map.of("numero","1","clienteId",cliente.getBody().get("id").asLong()),JsonNode.class);
         assertThat(viagem.getStatusCode()).isEqualTo(HttpStatus.CREATED);return viagem.getBody().get("id").asLong();
     }
-    private ResponseEntity<JsonNode> excluir(String id){return http.exchange("/api/viagens/"+id,HttpMethod.DELETE,HttpEntity.EMPTY,JsonNode.class);}
+    private ResponseEntity<JsonNode> excluir(String id){var h=new HttpHeaders();var atual=http.getForEntity("/api/viagens/"+id,JsonNode.class);if(atual.getHeaders().getETag()!=null)h.setIfMatch(atual.getHeaders().getETag());return http.exchange("/api/viagens/"+id,HttpMethod.DELETE,new HttpEntity<>(h),JsonNode.class);}
     @Test void excluiSomenteViagemSemVinculosEPreservaCliente(){
         long id=vazia();var resposta=excluir(String.valueOf(id));assertThat(resposta.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);assertThat(resposta.getBody()).isNull();
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM viagens",Integer.class)).isZero();

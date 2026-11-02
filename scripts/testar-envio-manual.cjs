@@ -37,9 +37,10 @@ function zip(entries) {
   return Buffer.concat([...locals, central, end]);
 }
 
-let processServer, browser;
+let processServer, browser, page;
+const requisicoes=[];
 async function start(extra = []) {
-  processServer = spawn(process.env.JAVA || 'java', ['-jar', jar, '--server.port=0',
+  processServer = spawn(process.env.JAVA || 'java', ['-Xmx512m','-jar', jar, '--server.port=0',
     '--spring.datasource.url=jdbc:h2:file:' + base.replaceAll('\\', '/') + '/banco;WRITE_DELAY=0',
     '--spring.flyway.enabled=true', '--spring.h2.console.enabled=false',
     '--rotabrasil.arquivos.viagens=' + base + '/viagens', ...extra], { cwd: root, stdio: ['ignore', log, log] });
@@ -57,7 +58,10 @@ async function start(extra = []) {
 async function main() {
   let url = await start();
   browser = await chromium.launch({ ...(process.env.ROTABRASIL_BROWSER_CHANNEL==='chromium'?{}:{channel:'chrome'}), headless: true });
-  const page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, locale: 'pt-BR' });
+  page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, locale: 'pt-BR' });
+  page.on('request',r=>{if(r.url().includes('/api/'))requisicoes.push({metodo:r.method(),url:r.url(),evento:'solicitada'});});
+  page.on('response',r=>{if(r.url().includes('/api/'))requisicoes.push({metodo:r.request().method(),url:r.url(),status:r.status()});});
+  page.on('requestfailed',r=>{if(r.url().includes('/api/'))requisicoes.push({url:r.url(),falha:r.failure()?.errorText});});
   async function navegar(id){await page.evaluate(hash=>{location.hash=hash;},id);await page.waitForFunction(route=>document.querySelector('main').dataset.paginaAtual===route,id==='documentos'?'viagens':id);}
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(url, { waitUntil: 'networkidle' });
@@ -116,7 +120,8 @@ async function main() {
   await page.locator('#vinculo-a4 input').nth(1).check();
   await expect(page.locator('#confirmar-zip')).toBeEnabled();
   checks.push('Pacote corrigido descarta resultados/vínculos antigos e exige associação explícita de todos os PDFs');
-  await page.locator('#confirmar-zip').click();
+  const importacaoConfirmada=page.waitForResponse(r=>r.url().includes('/api/pacotes/confirmacao')&&r.request().method()==='POST');
+  await page.locator('#confirmar-zip').click();assert.equal((await importacaoConfirmada).status(),200);
   await expect(page.locator('#total-viagens')).toHaveText('2');
   await expect(page.locator('#diagnosticos-zip > li')).toHaveCount(5);
   await expect(page.locator('#resumo-zip')).toContainText('Importação confirmada');
@@ -125,13 +130,14 @@ async function main() {
   const historicos = await (await page.request.get(url + '/api/processamentos')).json();
   const problema = historicos.find(p => p.SITUACAO === 'CONFERENCIA_COM_PENDENCIAS');
   assert(problema);
-  await navegar('processamentos');await page.locator('#atualizar-processamentos').click();
-  const linhaProblema = page.locator('#lista-processamentos article').filter({ hasText: problema.ID });
-  await linhaProblema.getByRole('button', { name: 'Consultar diagnóstico', exact: true }).click();
-  await expect(page.locator('#resumo-zip')).toContainText(problema.ID);
+  await navegar('processamentos');await page.locator('#filtro-processamentos').selectOption('TODAS');await page.locator('#atualizar-processamentos').click();
+  const linhaProblema = page.locator(`#lista-processamentos article[data-operacao-id="${problema.ID}"]`);
+  await linhaProblema.locator(':scope > details > summary').click();
+  await expect(linhaProblema).toContainText('cobrancas/fatura-compartilhada.pdf');
+  await expect(linhaProblema).toContainText('PDF_NAO_RECONHECIDO');
+  const escolha=page.waitForEvent('filechooser');await linhaProblema.getByRole('button', { name: 'Selecionar ZIP corrigido', exact: true }).click();
+  await(await escolha).setFiles({ name: 'corrigido.zip', mimeType: 'application/zip', buffer });
   await expect(page.locator('#confirmar-zip')).toBeDisabled();
-  await navegar('processamentos');await linhaProblema.getByRole('button', { name: 'Corrigir com novo ZIP', exact: true }).click();
-  await page.locator('#arquivo-zip').setInputFiles({ name: 'corrigido.zip', mimeType: 'application/zip', buffer });
   await page.locator('#inspecionar-zip').click();
   await expect(page.locator('#confirmar-zip')).toBeEnabled();
   assert.equal(await page.locator('#vinculo-a2 input:checked').count(), 2);
@@ -218,6 +224,9 @@ async function main() {
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   await page.screenshot({ path: path.join(output, 'mobile.png'), fullPage: true });
   checks.push('Desktop e celular sem overflow');
+  const local={total:checks.length,verificacoes:checks,errosJavaScript:errors,envioRealExecutado:false};
+  assert.deepEqual(errors,[]);fs.writeFileSync(path.join(output,'resultado-local.json'),JSON.stringify(local,null,2));
+  if(args.includes('--somente-local')){console.log(JSON.stringify(local,null,2));return;}
   // Provisionamento apenas na base sintética de desenvolvimento, seguido de reinício autenticado.
   const senha = 'SenhaSinteticaParaBrowser12!';
   for (const [usuario, papel] of [['admin-teste', 'ADMIN'], ['leitor-teste', 'CONSULTA']]) {
@@ -240,7 +249,7 @@ async function main() {
     await page.locator('button[type="submit"]').click(); await page.waitForLoadState('networkidle');
     await expect(page.locator('#sessao-usuario')).toContainText(nome);
   }
-   await entrar('admin-teste'); await expect(page.locator('#administracao')).toHaveCount(0);
+   await entrar('admin-teste'); await expect(page.locator('.sidebar nav a[href="#administracao"]')).toHaveCount(1);
    assert.equal((await (await page.request.get(url+'/api/admin/usuarios')).json()).length,2);
   await page.locator('#sair').click(); await page.waitForURL('**/login'); await entrar('leitor-teste');
   await expect(page.locator('#administracao')).toBeHidden(); await expect(page.locator('#inspecionar-zip')).toBeDisabled();
@@ -255,7 +264,7 @@ async function main() {
   fs.writeFileSync(path.join(output, 'resultado-ui.json'), JSON.stringify(result, null, 2));
   console.log(JSON.stringify(result, null, 2));
 }
-main().catch(error => { console.error(error); fs.writeFileSync(path.join(output,'resultado-ui-parcial.json'),JSON.stringify({total:checks.length,verificacoes:checks,errosJavaScript:errors,erro:error.message,envioRealExecutado:false},null,2)); process.exitCode = 1; }).finally(async () => {
+main().catch(async error => { console.error(error);if(page&&!page.isClosed())await page.screenshot({path:path.join(output,'falha.png'),fullPage:true}).catch(()=>{});fs.writeFileSync(path.join(output,'resultado-ui-parcial.json'),JSON.stringify({total:checks.length,verificacoes:checks,errosJavaScript:errors,requisicoes,erro:error.message,envioRealExecutado:false},null,2)); process.exitCode = 1; }).finally(async () => {
   if (browser) await browser.close();
   if (processServer && processServer.exitCode === null && processServer.signalCode === null) {
     processServer.kill();

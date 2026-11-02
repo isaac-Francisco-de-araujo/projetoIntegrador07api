@@ -74,11 +74,13 @@ class DiagnosticoRecuperacaoHttpTest {
     }
     @Test void conferenciaCorrigidaResolveErroMasAssociacaoSoResolveComImportacao()throws Exception{
         var anterior=upload("/api/pacotes/inspecao",zip(false),null).getBody().get("diagnostico");String id=anterior.get("operacaoId").asText();
-        var corrigida=upload("/api/pacotes/inspecao?anteriorOperacaoId="+id,zip(true),null).getBody();
+        // Conferência e confirmação precisam dos mesmos bytes, inclusive timestamp ZIP.
+        byte[] corrigido=zip(true);
+        var corrigida=upload("/api/pacotes/inspecao?anteriorOperacaoId="+id,corrigido,null).getBody();
         var antigo=diagnostico("PROCESSAMENTO",id);assertThat(antigo.get("estado").asText()).isEqualTo("RESOLVIDO");assertThat(antigo.get("resolucao").get("referencia").asText()).isEqualTo(corrigida.get("operacaoId").asText());
         assertThat(antigo.toString()).contains("PDF_NAO_RECONHECIDO");assertThat(central("PRECISA_ACAO").get("total").asInt()).isEqualTo(1);
         String novoId=corrigida.get("operacaoId").asText();
-        var r=upload("/api/pacotes/confirmacao?anteriorOperacaoId="+novoId,zip(true),Map.of("sha256",corrigida.get("sha256").asText(),"vinculos",List.of(Map.of("arquivoId","a1","finalidade","FATURA","xmlIds",List.of("a0")))));
+        var r=upload("/api/pacotes/confirmacao?anteriorOperacaoId="+novoId,corrigido,Map.of("sha256",corrigida.get("sha256").asText(),"vinculos",List.of(Map.of("arquivoId","a1","finalidade","FATURA","xmlIds",List.of("a0")))));
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);assertThat(diagnostico("PROCESSAMENTO",novoId).get("estado").asText()).isEqualTo("RESOLVIDO");assertThat(central("PRECISA_ACAO").get("total").asInt()).isZero();
     }
     @Test void novaOperacaoSemVinculoNaoEncerraPendenciaAnterior()throws Exception{

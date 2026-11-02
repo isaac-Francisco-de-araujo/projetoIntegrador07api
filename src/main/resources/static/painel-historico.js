@@ -2,8 +2,9 @@ import { $,api } from './painel-base.js';
 import { renderizarDiagnostico,apresentarErro } from './painel-diagnostico.js';
 let pagina=0,versao=0;
 function contadores(r){
-  $('contador-falhas').textContent=String(r.falhas);$('contador-atencao').textContent=String(r.atencao);$('contador-andamento').textContent=String(r.emProcessamento);
-  $('contador-pendencias').setAttribute('aria-label',`${r.falhas} falha(s), ${r.atencao} atenção(ões), ${r.emProcessamento} em processamento`);
+  const total=r.falhas+r.atencao,contador=$('contador-pendencias');
+  contador.textContent=total>99?'99+':String(total);contador.classList.remove('unavailable');
+  contador.setAttribute('aria-label',`${total} operação(ões) precisam de ação`);contador.title=contador.getAttribute('aria-label');
   $('resumo-central').textContent=`${r.falhas} falha(s) · ${r.atencao} pendência(s)/resultado(s) incerto(s) · ${r.emProcessamento} em processamento · ${r.resolvidos} resolvido(s).`;
 }
 async function carregar(){
@@ -15,7 +16,7 @@ async function carregar(){
     if(!r.itens.length)alvo.textContent='Nenhuma operação neste filtro. Uma consulta sem resultados não é erro.';
     $('pagina-processamentos').textContent=`Página ${pagina+1} · ${r.total} operação(ões)`;
     $('processamentos-anterior').disabled=pagina===0;$('processamentos-proxima').disabled=(pagina+1)*r.tamanho>=r.total;
-  }catch(error){if(atual===versao){apresentarErro(alvo,error);$('resumo-central').textContent='Central indisponível. Nenhum dado antigo é apresentado como atualizado.';for(const id of ['contador-falhas','contador-atencao','contador-andamento'])$(id).textContent='?';$('processamentos-anterior').disabled=true;$('processamentos-proxima').disabled=true;}}
+  }catch(error){if(atual===versao){apresentarErro(alvo,error,{tentarNovamente:carregar});$('resumo-central').textContent='Central indisponível. Nenhum dado antigo é apresentado como atualizado.';const contador=$('contador-pendencias');contador.textContent='!';contador.classList.add('unavailable');contador.setAttribute('aria-label','Consulta de pendências indisponível');contador.title='Consulta de pendências indisponível';$('pagina-processamentos').textContent='Consulta indisponível';$('processamentos-anterior').disabled=true;$('processamentos-proxima').disabled=true;}}
   finally{if(atual===versao){$('atualizar-processamentos').disabled=false;alvo.setAttribute('aria-busy','false');}}
 }
 export function iniciarHistorico(){

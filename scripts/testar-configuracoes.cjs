@@ -42,7 +42,8 @@ async function run(){
     const {PDFDocument,StandardFonts}=await import('/webjars/pdf-lib/1.17.1/dist/pdf-lib.esm.min.js');const d=await PDFDocument.create(),font=await d.embedFont(StandardFonts.Helvetica);d.addPage().drawText('FATURA SINTETICA - SEM VALOR FISCAL',{x:40,y:700,font,size:14});
     const {zipSync,strToU8}=await import('/webjars/fflate/0.8.3/esm/browser.js');return Array.from(zipSync({'cte.xml':strToU8(xml),'outro.xml':strToU8(secondXml),'fatura.pdf':await d.save()},{level:0}));
   },{xml,secondXml}));
-  await navegar('pacotes');await page.locator('#arquivo-zip').setInputFiles({name:'fixture.zip',mimeType:'application/zip',buffer:zip});
+   fs.writeFileSync(path.join(out,'fixture-sintetica.zip'),zip);
+   await navegar('pacotes');await page.locator('#arquivo-zip').setInputFiles({name:'fixture.zip',mimeType:'application/zip',buffer:zip});
   await page.locator('#destinatario-confirmacao').fill('origem@example.invalid');await page.locator('#simular-confirmacao').check();await page.locator('#inspecionar-zip').click();
   await page.locator('#vinculo-a2 select').selectOption('FATURA');for(const box of await page.locator('#vinculo-a2 input[type=checkbox]').all())await box.check();
   await page.waitForFunction(()=>document.getElementById('avisos-recebimento').textContent.includes('não confirma leitura'));

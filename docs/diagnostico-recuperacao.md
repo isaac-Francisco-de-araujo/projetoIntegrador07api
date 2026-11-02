@@ -1,5 +1,19 @@
 # Etapa de Diagnóstico e Recuperação — V10
 
+**Evolução V11:** a [confirmação ao motorista](confirmacao-motorista.md) reutiliza
+o diagnóstico `NOTIFICACAO` e a Central. Falha conhecida fica em vermelho;
+DESCONHECIDO em âmbar; SIMULADO/ACEITO_SMTP em verde com identificação explícita
+do que foi comprovado, sem afirmar entrega/leitura. Consultar avisos abre a
+mensagem e suas tentativas; não dispara transporte. Reenvio exige conferência e
+confirmação vinculadas. Sucesso posterior pode resolver falha conhecida, mas não
+resolve uma tentativa anterior desconhecida. Importação/exportação são independentes.
+Código atual exige V11; não houve migração operacional.
+
+**Revisão atual (31/10/2026):** veja [Estabilização](estabilizacao.md). O menu tem um
+contador compacto (falhas + atenção, `99+`), com divisão na tela e indisponibilidade
+acessível única. GET com falha é erro de consulta, em vermelho, com nova tentativa;
+não é resultado incerto de alteração. Os resultados V10 abaixo são históricos.
+
 ## Visão operacional
 
 A tela existente **Processamentos** passou a ser a **Central de Pendências**.
@@ -178,7 +192,10 @@ No timeout do navegador:
 > A resposta demorou além do esperado. O resultado ainda não foi confirmado.
 > Consulte o histórico antes de repetir.
 
-Respostas inválidas e perda de conexão também ficam incertas. Confirmações com
+Respostas inválidas e perda de conexão durante **alterações** também ficam incertas.
+GET sem resposta, com timeout ou corpo inválido apresenta falha ao carregar a
+consulta, sem afirmar incerteza transacional. Cancelamento explícito informa espera
+interrompida no navegador; não promete cancelar o trabalho no backend. Confirmações com
 dados incompletos continuam bloqueadas. Um diagnóstico anterior da mesma seleção
 fica explicitamente rotulado como anterior; trocar de operação limpa os resultados
 locais e impede que uma resposta atrasada habilite outra seleção.

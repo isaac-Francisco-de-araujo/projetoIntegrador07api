@@ -1,5 +1,9 @@
 # Etapa 4 — Inventário, backup, migrações e concorrência
 
+**Código atual V14:** [uso compartilhado](uso-compartilhado.md). V12–V14 são novas
+migrações; o inventário inclui responsabilidades e seus eventos. Nenhuma base
+operacional foi migrada nesta evolução. O restante registra as etapas anteriores.
+
 **Código atual: V10.** A [nova configuração, exportação e notificações](configuracoes-exportacao-notificacoes.md)
 acrescenta seis tabelas ao inventário/fingerprint. Bancos existentes continuam
 exigindo autorização e backup verificado antes da migração. A versão exigida pelo

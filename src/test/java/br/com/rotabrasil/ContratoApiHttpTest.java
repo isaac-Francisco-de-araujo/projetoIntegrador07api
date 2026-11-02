@@ -42,6 +42,9 @@ class ContratoApiHttpTest {
     @AfterAll static void remover() throws Exception { FileSystemUtils.deleteRecursively(RAIZ); }
     private ResponseEntity<JsonNode> json(HttpMethod method, String path, Object body) {
         var headers = new HttpHeaders(); headers.setContentType(MediaType.APPLICATION_JSON);
+        if((method==HttpMethod.PUT||method==HttpMethod.DELETE)&&path.matches("/api/(clientes|viagens)/[0-9]+")){
+            var atual=http.getForEntity(path,JsonNode.class);if(atual.getHeaders().getETag()!=null)headers.setIfMatch(atual.getHeaders().getETag());
+        }
         return http.exchange(path, method, new HttpEntity<>(body, headers), JsonNode.class);
     }
     private JsonNode ok(ResponseEntity<JsonNode> resposta, HttpStatus status) {

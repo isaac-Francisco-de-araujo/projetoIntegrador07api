@@ -23,10 +23,14 @@ class SegurancaHttpTest {
     @DynamicPropertySource static void props(DynamicPropertyRegistry r){r.add("rotabrasil.seguranca.admin-hash",()->new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder(4).encode(SENHA));r.add("rotabrasil.arquivos.viagens",()->System.getProperty("java.io.tmpdir")+"/rotabrasil-seguranca-nao-usado");}
     @Autowired MockMvc mvc;@Autowired JdbcTemplate jdbc;@Autowired PasswordEncoder encoder;
     @BeforeEach void preparar(){
-        jdbc.update("UPDATE usuarios SET ativo=TRUE,papel='ADMIN' WHERE usuario='administrador'");jdbc.update("DELETE FROM usuarios WHERE usuario<>'administrador'");
+        jdbc.update("UPDATE usuarios SET ativo=TRUE,papel='ADMIN',versao=0 WHERE usuario='administrador'");jdbc.update("DELETE FROM usuarios WHERE usuario<>'administrador'");
         for(String nome:new String[]{"leitor","operador"})jdbc.update("INSERT INTO usuarios(usuario,senha_hash,papel,criado_em) VALUES(?,?,?,CURRENT_TIMESTAMP)",nome,encoder.encode(SENHA),nome.equals("leitor")?"CONSULTA":"OPERADOR");
     }
     MockHttpSession login(String nome)throws Exception{return (MockHttpSession)mvc.perform(formLogin().user(nome).password(SENHA)).andExpect(status().is3xxRedirection()).andReturn().getRequest().getSession(false);}
+    @Test void entradaPadraoExisteSemAlterar401DaApi()throws Exception{
+        mvc.perform(get("/login")).andExpect(status().isOk()).andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"username\""))).andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"_csrf\"")));
+        mvc.perform(get("/api/sessao").accept("text/html")).andExpect(status().isUnauthorized()).andExpect(content().contentTypeCompatibleWith("application/json"));
+    }
     @Test void apiExigeLoginEPaginaRedirecionaAoFormulario()throws Exception{
         mvc.perform(get("/api/viagens")).andExpect(status().isUnauthorized()).andExpect(header().exists("X-Request-Id"));
         mvc.perform(get("/")).andExpect(status().is3xxRedirection());
@@ -69,5 +73,31 @@ class SegurancaHttpTest {
         var s=login("operador");jdbc.update("UPDATE usuarios SET ativo=FALSE WHERE usuario='operador'");mvc.perform(get("/api/viagens").session(s)).andExpect(status().isUnauthorized());
         var admin=login("administrador");long id=jdbc.queryForObject("SELECT id FROM usuarios WHERE usuario='administrador'",Long.class);
         mvc.perform(put("/api/admin/usuarios/"+id).session(admin).with(csrf()).contentType("application/json").content("{\"papel\":\"CONSULTA\",\"ativo\":false}")).andExpect(status().isConflict());
+    }
+    @Test void loginInvalidoLogoutESessaoExpirada()throws Exception{
+        mvc.perform(formLogin().user("operador").password("incorreta")).andExpect(redirectedUrl("/login?error"));
+        var s=login("operador");mvc.perform(post("/logout").session(s)).andExpect(status().isForbidden());
+        mvc.perform(post("/logout").session(s).with(csrf())).andExpect(redirectedUrl("/login?logout"));
+        mvc.perform(get("/api/sessao")).andExpect(status().isUnauthorized());
+    }
+    @Test void redefinicaoRevogaSessaoEMudancaDePapelRevalidaPermissao()throws Exception{
+        var s=login("operador");var admin=login("administrador");long id=jdbc.queryForObject("SELECT id FROM usuarios WHERE usuario='operador'",Long.class);
+        jdbc.update("UPDATE usuarios SET papel='CONSULTA' WHERE id=?",id);
+        mvc.perform(post("/api/pacotes/inspecao").session(s).with(csrf())).andExpect(status().isForbidden());
+        mvc.perform(post("/api/admin/usuarios/"+id+"/senha").session(admin).with(csrf()).contentType("application/json").content("{\"senha\":\"OutraSenhaSintetica12!\"}")).andExpect(status().isOk());
+        mvc.perform(get("/api/sessao").session(s)).andExpect(status().isUnauthorized());
+        mvc.perform(formLogin().user("operador").password(SENHA)).andExpect(redirectedUrl("/login?error"));
+    }
+    @Test void doisAdministradoresNaoConseguemRemoverAmbosConcorrentemente()throws Exception{
+        jdbc.update("UPDATE usuarios SET papel='ADMIN' WHERE usuario='operador'");
+        var a=login("administrador");var b=login("operador");
+        long idA=jdbc.queryForObject("SELECT id FROM usuarios WHERE usuario='administrador'",Long.class),idB=jdbc.queryForObject("SELECT id FROM usuarios WHERE usuario='operador'",Long.class);
+        var barreira=new java.util.concurrent.CyclicBarrier(2);
+        try(var pool=java.util.concurrent.Executors.newFixedThreadPool(2)){
+            var rA=pool.submit(()->{barreira.await();return mvc.perform(put("/api/admin/usuarios/"+idA).session(a).with(csrf()).contentType("application/json").content("{\"papel\":\"CONSULTA\",\"ativo\":true,\"versao\":0}")).andReturn().getResponse().getStatus();});
+            var rB=pool.submit(()->{barreira.await();return mvc.perform(put("/api/admin/usuarios/"+idB).session(b).with(csrf()).contentType("application/json").content("{\"papel\":\"CONSULTA\",\"ativo\":true,\"versao\":0}")).andReturn().getResponse().getStatus();});
+            assertThat(java.util.List.of(rA.get(20,java.util.concurrent.TimeUnit.SECONDS),rB.get(20,java.util.concurrent.TimeUnit.SECONDS))).containsExactlyInAnyOrder(200,409);
+        }
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM usuarios WHERE ativo=TRUE AND papel='ADMIN'",Integer.class)).isEqualTo(1);
     }
 }

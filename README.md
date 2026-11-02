@@ -7,18 +7,41 @@ os arquivos por viagem, associar faturas, conferir informações e acompanhar te
 de envio de e-mail. Backend, API REST e frontend são distribuídos na mesma aplicação
 Spring Boot.
 
-**Estado documentado:** outubro de 2026 · Java 25 · Spring Boot 3.5.6 · código requer esquema de banco **V10**.
+**Estado documentado:** novembro de 2026 · Java 25 · Spring Boot 3.5.6 · código requer esquema de banco **V14**.
 O modo padrão de e-mail é **SIMULADO**. O adaptador SMTP real existe no código e depende
 de ativação/configuração explícitas e homologação operacional.
 
+**Uso diário compartilhado:** login individual, proteção de edição concorrente,
+fila com responsáveis, busca paginada no servidor e painel de saúde já integram a
+mesma aplicação. Consulte [o guia multioperador](docs/uso-compartilhado.md) para
+permissões, teste com dois navegadores e implantação centralizada com HTTPS.
+
+**Etapa E-mail (31/10/2026):** implementada a confirmação manual de recebimento ao
+motorista, com conferência persistida, histórico idempotente e SMTP OAuth2 condicional.
+O padrão continua **SIMULADO**. A conta pessoal/corporativa ainda precisa ser
+identificada; ativação REAL e homologação externa dependem da autorização e da
+configuração externa da conta. O login protegido já está disponível; isso não ativa
+SMTP real. Nenhum e-mail externo foi enviado.
+Veja [o contrato da confirmação ao motorista](docs/confirmacao-motorista.md).
+As correções anteriores foram preservadas: [relatório da estabilização](docs/estabilizacao.md).
+
+### Documento geral do projeto
+
+A [visão geral do sistema](docs/visao-geral-do-sistema.md), também disponível em
+[PDF](docs/visao-geral-do-sistema.pdf) e [Word](docs/visao-geral-do-sistema.docx),
+preserva o levantamento de **21/10/2026** e seus diagramas. Para o estado atual V14,
+consulte este README e os contratos de uso compartilhado e da Etapa E-mail.
+
 ## Sumário
 
+- [Atualizações da versão atual](#atualizações-da-versão-atual)
 - [Visão geral](#visão-geral)
 - [Funcionalidades atuais](#funcionalidades-atuais)
 - [Tecnologias utilizadas](#tecnologias-utilizadas)
 - [Arquitetura e organização](#arquitetura-e-organização)
 - [Mapa dos módulos do backend e frontend](#mapa-dos-módulos-do-backend-e-frontend)
 - [Frontend e navegação](#frontend-e-navegação)
+- [Uso diário por vários operadores](#uso-diário-por-vários-operadores)
 - [Como utilizar o sistema](#como-utilizar-o-sistema)
 - [Fluxos de documentos](#fluxos-de-documentos)
 - [Diagnóstico, Central de Pendências e recuperação](#diagnóstico-central-de-pendências-e-recuperação)
@@ -27,11 +50,86 @@ de ativação/configuração explícitas e homologação operacional.
 - [Como executar localmente](#como-executar-localmente)
 - [Configurações principais](#configurações-principais)
 - [Configurações da operação, notificações e exportação](#configurações-da-operação-notificações-e-exportação)
+- [Confirmação de recebimento ao motorista](#confirmação-de-recebimento-ao-motorista)
 - [Envio de e-mail](#envio-de-e-mail)
 - [API REST](#api-rest)
 - [Testes e verificações](#testes-e-verificações)
 - [Limitações e próximos passos](#limitações-e-próximos-passos)
 - [Documentação complementar](#documentação-complementar)
+
+## Atualizações da versão atual
+
+### Uso diário compartilhado — evolução atual
+
+Login individual e gestão de operadores voltam a integrar o frontend existente.
+Consulte [contratos, permissões e implantação centralizada](docs/uso-compartilhado.md).
+A autorização atual substitui a orientação histórica de não acrescentar login.
+Fila compartilhada, busca paginada no servidor e saúde estão integradas ao mesmo
+frontend/backend. Novas migrações V12–V14; banco operacional não alterado.
+Validação atual: **387 testes JUnit, 386 aprovados, 1 ignorado, zero falhas/erros**.
+Navegador: uso compartilhado 9, envio manual 14, confirmação ao motorista 7,
+Configurações 7 e recuperação 7 verificações, em execuções independentes.
+Resultados detalhados e artefatos em [verificação da entrega](docs/uso-compartilhado.md#verificação-da-entrega).
+
+### Histórico: Etapa E-mail — confirmação ao motorista
+
+- Destinatário explícito no upload e possibilidade de correção antes do envio,
+  sem extrair endereço do ZIP nem usar automaticamente o cliente do CT-e.
+- Prévia persistida de remetente, destinatário, assunto, texto, recebimento/pacote,
+  modo e situação conhecida. Alterações relevantes exigem nova conferência.
+- Confirmação manual em SIMULADO ou REAL conforme configuração externa; eventos
+  internos não disparam mensagens reais automaticamente. Sem anexos fiscais.
+- Reutilização do adaptador SMTP com STARTTLS, verificação do servidor, timeouts
+  e suporte XOAUTH2 por token externo. Sem fallback para autenticação básica na
+  confirmação Microsoft, sem ativar envio documental REAL ao cliente.
+- Tentativa persistida antes do transporte, proteção contra clique duplo,
+  concorrência/resposta perdida, reenvio deliberado vinculado e histórico na Central.
+- Configurações mostra pré-requisitos seguros, teste simulado e conferência de
+  teste real sintético quando disponível. Salvar endereço não autentica a conta.
+- Segurança mantida por decisão do responsável: REAL exige sessão protegida
+  OPERADOR/ADMIN e CSRF; teste real de configuração exige ADMIN. Sem criar login.
+- Migração nova V11; banco operacional não alterado. Homologação externa pendente.
+
+**Validação da Etapa E-mail V11:** suíte completa com **378 testes contabilizados, 377 aprovados,
+zero falhas/erros e 1 ignorado** (symlink no Windows). Navegador: confirmação ao
+motorista 7 verificações, Configurações 7, recuperação 7, estabilização 5 e envio
+documental local 13 cenários, em execuções separadas. Não houve SMTP externo.
+Detalhes, configuração segura e recuperação em [Confirmação ao motorista](docs/confirmacao-motorista.md).
+
+### Histórico preservado: estabilização antes da Etapa E-mail — 31/10/2026
+
+| Área | Atualização |
+| --- | --- |
+| Configurações e Processamentos | Reproduzida a causa dos erros **“Recurso não encontrado”**: JAR antigo executado com arquivos estáticos atuais sobrepostos. No JAR atualizado, `GET /api/configuracoes` e `GET /api/pendencias` retornaram **200**. |
+| Versão e empacotamento | O painel verifica a compatibilidade do backend ao iniciar. `GET /api/versao` informa versão, instante de build, contrato e hashes dos recursos estáticos. HTML, JavaScript e CSS usam `Cache-Control: no-store`. |
+| Menu lateral | Um único contador de itens que precisam de ação, limitado a **99+**. Falha de consulta mostra um indicador acessível de indisponibilidade; a divisão entre falhas, atenção e andamento fica dentro da tela. |
+| Layout da sidebar | Corrigida a regra que tratava o nome da aba como ícone. Verificados menu aberto, recolhido e celular, incluindo larguras de 800 e 1024 px, com medição do texto renderizado para impedir sobreposição. |
+| Mensagens e recuperação | Falhas de consulta aparecem em vermelho, com mensagem específica e **Tentar novamente**. Recusa conhecida, pendência de processamento e resultado incerto de alteração recebem tratamentos distintos. Referências e informações técnicas ficam em **Ver detalhes**. |
+| Cancelamento | A interface informa que a espera foi interrompida no navegador, sem afirmar que a operação foi cancelada no backend. |
+| Pasta adicional | A raiz de exportação deve ficar **fora do checkout e separada do acervo**. Configurações sobrepostas ao checkout detectado são recusadas explicitamente, sem trocar o destino silenciosamente. A pasta pertence ao computador do backend. |
+| Integridade e retomada | Validadas cópia automática/manual, fatura compartilhada, SHA-256, conflitos, indisponibilidade da pasta e retomada somente da exportação, preservando importação, originais e histórico. |
+
+**Validação desta revisão:** suíte JUnit completa com **360 testes contabilizados:
+359 aprovados, zero falhas/erros e 1 ignorado** por falta de privilégio de symlink
+no Windows. No navegador, foram aprovadas verificações de estabilização,
+Configurações, diagnóstico/recuperação, modernização e os **13 cenários do fluxo
+manual local**, incluindo simulação, resposta perdida e persistência após reinício.
+Os resultados de cada execução estão em [Testes e verificações](#testes-e-verificações);
+os números não representam soma de recortes históricos.
+
+**Limitação separada:** a continuação de navegador com segurança ativa permanece
+bloqueada por `GET /login` retornando **404**. Autenticação, permissões e CSRF
+foram preservados. Esse cenário não amplia o escopo local para criar um login.
+
+O fluxo manual local validado está apto a servir de base para iniciar a **Etapa
+E-mail**. O envio real de confirmação de recebimento ao motorista ainda é posterior;
+**nenhum SMTP real foi habilitado e nenhuma mensagem real foi enviada** nesta tarefa.
+A implantação operacional depende da verificação separada do banco V10 e do acesso
+à pasta externa. Não houve alteração de banco operacional, documentos reais ou credenciais.
+
+Para experimentar, siga [Como executar localmente](#como-executar-localmente),
+utilizando o frontend do mesmo JAR. O roteiro completo de falhas e recuperação,
+as URLs reproduzidas e as evidências estão em [Estabilização](docs/estabilizacao.md).
 
 ## Visão geral
 
@@ -111,19 +209,23 @@ fatura fiscal. A revisão visual de um PDF cria uma cópia e não modifica o XML
 | Reenvio | Nova conferência e referência explícita à tentativa anterior, sem repetição automática |
 | SMTP | Adaptador real implementado com autenticação, STARTTLS obrigatório e timeouts; padrão simulado |
 | Controle de acesso | Sessões, BCrypt, CSRF e papéis CONSULTA, OPERADOR e ADMIN quando a segurança está ativa |
+| Operadores | Login individual, logout, cadastro administrativo, papéis, ativação/desativação e redefinição de senha com revogação de sessões |
+| Concorrência | Versões de configuração/operadores, ETag no CRUD de clientes/viagens e recusa de alterações desatualizadas |
+| Fila compartilhada | Históricos existentes com situação técnica, trabalho, responsável, atribuição atômica, transferência auditada e paginação |
+| Busca integrada | Clientes, CT-es, XMLs, PDFs e pacotes com filtros e ordenação no servidor, sem duplicar faturas compartilhadas |
+| Saúde | Backend, banco, pastas, espaço disponível, configuração de e-mail e evidências de backup com permissões e estados verificáveis |
 | Auditoria | Ator, correlação de requisições, referências de recursos e resultados HTTP |
 | Manutenção | Inventário, backup, migrações controladas e recuperação conservadora de armazenamento |
 | Configurações | Oitava tela; remetente da operação, destino de exportação, ativação da cópia automática e testes persistentes |
-| Confirmação de recebimento | Destinatário informado no upload, avisos por evento e simulação idempotente, sem anexos fiscais |
+| Confirmação de recebimento | Motorista explícito, prévia persistida, confirmação manual, SIMULADO padrão e REAL condicionado a OAuth2/segurança; histórico, idempotência e reenvio vinculado, sem anexos fiscais |
 | Exportação adicional | Cópia manual ou automática de arquivos ativos para subpasta autorizada do backend, com SHA-256 e retomada de pendências |
 | Diagnóstico e recuperação | Cartões persistentes, erros em vermelho, causas comprovadas, correlação, impacto, ações específicas e evidência de resolução |
 | Central de Pendências | Processamentos ampliada; consulta paginada dos históricos existentes, filtros e contadores separados de falha/atenção/andamento |
 
-A interface administrativa de operadores foi retirada do painel. As APIs administrativas
-e as regras de permissão continuam no backend. O frontend atual não possui formulários
-de cadastro/edição manual de cliente e viagem; esses contratos existem na API.
-O painel local atual também não apresenta formulário de login. Configurações não
-adiciona autenticação ou gestão de usuários; preserva as proteções já existentes.
+A interface de operadores foi reintegrada, restrita a ADMIN, com login individual,
+logout e redefinição de acesso. O frontend não oferece edição manual de cliente e
+viagem; as APIs exigem conferência de versão para essas alterações.
+Novas telas: `/#fila`, `/#busca`, `/#saude` e `/#administracao` (ADMIN).
 
 ## Tecnologias utilizadas
 
@@ -138,7 +240,7 @@ adiciona autenticação ou gestão de usuários; preserva as proteções já exi
 | **Spring Data JPA / Hibernate** | Persistência e mapeamento das entidades |
 | **Spring JDBC / JdbcTemplate** | Consultas operacionais, histórico, auditoria e coordenação de operações |
 | **H2 Database** | Banco relacional em arquivo; bases em memória nos testes |
-| **Flyway** | Evolução versionada do banco, atualmente até V10 |
+| **Flyway** | Evolução versionada do banco, atualmente até V14 |
 | **Spring Security** | Autenticação, autorização por papel, sessões e CSRF |
 | **BCrypt** | Hash das senhas de operadores |
 | **Jakarta Validation** | Validação dos contratos de entrada |
@@ -160,7 +262,7 @@ gerenciamento de versões do Spring Boot definido em [`pom.xml`](pom.xml).
 | **CSS3** | Temas, componentes, responsividade, foco e animações |
 | **JavaScript com ES Modules** | Organização dos módulos e comportamento das telas |
 | **Fetch API / FormData** | Integração REST e envio multipart para a mesma origem |
-| **History por hash** | Oito telas com links diretos e navegação voltar/avançar |
+| **History por hash** | Telas operacionais e compartilhadas com links diretos e navegação voltar/avançar |
 | **Canvas e SVG** | Renderização de PDFs, ícones e ilustrações locais |
 | **PDF.js 6.4.299** | Leitura e renderização das páginas dos PDFs |
 | **pdf-lib 1.17.1** | Geração das cópias com revisões visuais |
@@ -269,7 +371,8 @@ Os bytes de XML/PDF ficam no armazenamento de arquivos, com metadados e vínculo
 | `HistoricoProcessamentoService` | Histórico e diagnóstico persistente das operações |
 | `DiagnosticoOperacaoService` e `CentralPendenciasService` | Contrato público seguro e projeção paginada dos históricos existentes, com resolução comprovada e sem tabela paralela de pendências |
 | `ConfiguracaoOperacaoService` e `DestinoExportacaoService` | Configuração persistida, testes e seleção limitada à raiz de exportação autorizada |
-| `FluxoPacoteOperacionalService` e `NotificacaoRecebimentoService` | Eventos de recebimento/conferência/importação e notificações somente simuladas |
+| `FluxoPacoteOperacionalService` e `NotificacaoRecebimentoService` | Eventos internos simulados e confirmação manual ao motorista com conferência, snapshot e tentativa persistida no histórico existente |
+| `ConfiguracaoNotificacoes`, `TokenSmtpExterno` e `TransporteSmtp` | Pré-requisitos seguros, token OAuth2 externo e mesmo adaptador SMTP, sem habilitar envio documental automaticamente |
 | `ExportacaoPacoteService` e `PublicadorExportacao` | Planos persistentes, cópia sem sobrescrita, integridade e retomada dos itens pendentes |
 | `service/email/` | Preparação de anexos, conferências, tentativas e transportes de e-mail |
 | `seguranca/` | Operadores, autorização, sessão, auditoria e funções administrativas |
@@ -281,7 +384,7 @@ Todos os arquivos abaixo ficam em `src/main/resources/static/`.
 
 | Arquivo | Responsabilidade |
 | --- | --- |
-| `index.html` | Estrutura das oito telas, formulários, tabelas e diálogos |
+| `index.html` | Telas operacionais, busca, fila, saúde, operadores e diálogos |
 | `painel.js` | Entrada da aplicação: inicializa sessão, navegação e módulos do painel |
 | `painel-base.js` | Estado compartilhado, cliente HTTP, CSRF, permissões, avisos e formatação |
 | `painel-navegacao.js` | Rotas hash, títulos, aliases e histórico de navegação |
@@ -298,13 +401,15 @@ Todos os arquivos abaixo ficam em `src/main/resources/static/`.
 | `painel-historico.js` | Consulta de processamentos, diagnósticos e acesso à correção com novo ZIP |
 | `painel-configuracoes.js` e `painel-configuracoes.css` | Oitava tela, alterações não salvas, testes e configuração do remetente/destino |
 | `painel-exportacoes.js` | Ações manuais, resultado de cópia, retomada e consulta de avisos |
+| `painel-confirmacao-recebimento.js` | Conferência da mensagem, destinatário corrigível, confirmação explícita, recuperação e histórico ao motorista, separados do envio documental |
 | `painel-diagnostico.js`, `painel-recuperacao.js` e `painel-diagnostico.css` | Cartões acessíveis, lista de problemas, suporte e ações reais de recuperação |
 | `painel-emergencia.js` | Tratamento independente de erros globais de JavaScript, com mensagem segura e referência local |
 | `painel.css`, `painel-operacao.css` e `painel-visual.css` | Estilos-base, componentes operacionais, identidade visual e responsividade |
 | `rota-visual.svg` | Ilustração local utilizada na identidade visual |
 
-O arquivo `painel-admin.js` permanece no repositório como módulo anterior, mas não
-é importado pela inicialização atual do painel.
+Os módulos `painel-admin.js`, `painel-fila.js`, `painel-busca.js` e `painel-saude.js`
+são inicializados pelo painel existente. Administração exige ADMIN; os demais
+módulos respeitam as permissões de leitura e alteração validadas no backend.
 
 ### Como o frontend conversa com o backend
 
@@ -319,7 +424,8 @@ O arquivo `painel-admin.js` permanece no repositório como módulo anterior, mas
 
 ## Frontend e navegação
 
-O menu abre **oito telas separadas**, preservando a identidade verde/preto e verde-lima:
+O menu preserva as oito telas operacionais e acrescenta fila, busca, saúde e
+operadores (ADMIN), mantendo a identidade verde/preto e verde-lima:
 
 | Tela | Endereço | Conteúdo |
 | --- | --- | --- |
@@ -331,6 +437,10 @@ O menu abre **oito telas separadas**, preservando a identidade verde/preto e ver
 | Central de envios | `/#email` | Seleção conferida, destinatário, confirmação e histórico |
 | Processamentos e pendências | `/#processamentos` | Central paginada de falhas, atenção, andamento, resoluções e ações de recuperação |
 | Configurações | `/#configuracoes` | E-mail da operação, pasta do backend, cópia automática e resultados de testes |
+| Fila compartilhada | `/#fila` | Todos, meus itens, sem responsável, filtros, atribuição e histórico de responsabilidade |
+| Busca integrada | `/#busca` | Resultados por entidade, filtros, paginação e acesso aos detalhes |
+| Saúde do sistema | `/#saude` | Verificações locais, configuração e evidências; detalhes administrativos para ADMIN |
+| Operadores | `/#administracao` | Gestão de contas e redefinição de acesso, restritas a ADMIN |
 
 Os aliases `/#documentos`, `/#pacotes-importados` e `/#ultimas-viagens` continuam funcionando.
 
@@ -346,10 +456,32 @@ Recursos de interface:
 - Cards clicáveis e estados de carregamento, erro e ausência de resultados.
 - Filtros e seleções preservados entre telas; mudanças de dados invalidam as prévias necessárias.
 
-Viagens e clientes utilizam os arrays completos dos endpoints de metadados para
-filtro e ordenação no navegador, com páginas de **20 registros**. A lista de ZIPs
-usa paginação de servidor. As últimas viagens são ordenadas pela **data da viagem**,
+Viagens e clientes usam busca, filtros, ordenação e páginas de **20 registros no
+servidor**. A lista de ZIPs também usa paginação de servidor. Seletores usam consulta
+limitada com pesquisa explícita; a busca integrada localiza arquivos e pacotes.
+As últimas viagens são ordenadas pela **data da viagem**,
 não por uma data de processamento presumida.
+
+## Uso diário por vários operadores
+
+Uma aplicação central atende os navegadores de todos os PCs. Somente o backend
+acessa o H2 e o acervo; não compartilhe o arquivo do banco entre computadores.
+
+1. O administrador prepara a aplicação central com perfil `operacao`, HTTPS e
+   banco V14, seguindo a manutenção autorizada para bases existentes.
+2. O primeiro ADMIN utiliza o bootstrap seguro já existente. As demais contas são
+   cadastradas em **Operadores**, com papel CONSULTA, OPERADOR ou ADMIN.
+3. Cada pessoa entra em `/login` com sua conta e acompanha seus itens na **Fila
+   compartilhada**. Assumir, liberar e transferir mantêm histórico no servidor.
+4. Em conflito de edição, revise a versão atual antes de tentar novamente. A
+   configuração não reaplica o rascunho antigo automaticamente.
+5. Use **Busca integrada** para localizar registros e **Saúde do sistema** para
+   consultar condições comprovadas, pendências e verificações ainda não realizadas.
+
+Para testar dois operadores no mesmo computador, use perfis de navegador
+independentes: abas do mesmo perfil compartilham a sessão. O roteiro completo e
+os requisitos de rede estão em [Uso compartilhado](docs/uso-compartilhado.md).
+A implantação não abre portas automaticamente nem publica a aplicação na internet.
 
 ## Como utilizar o sistema
 
@@ -368,7 +500,7 @@ servidor, siga primeiro [Como executar localmente](#como-executar-localmente).
 
 No ambiente de desenvolvimento isolado, o acesso é local e não exige login.
 No perfil de operação, as ações dependem do usuário autenticado e de suas
-permissões. A pendência atual de acesso pelo formulário `/login` está descrita em
+permissões. Entre com a conta individual em `/login`, conforme
 [Segurança e perfis de execução](#segurança-e-perfis-de-execução).
 
 ### 2. Importar documentos de um ZIP
@@ -594,7 +726,9 @@ o cabeçalho `%PDF-`; um PDF pode passar por essa etapa e falhar no visualizador
 A tela **Processamentos** reúne os registros reais de processamento, exportação,
 tentativas documentais e avisos incertos. Os filtros **Precisam de ação**,
 **Em processamento** e **Resolvidos** usam paginação no backend, com 20 operações
-por página na interface. O menu distingue falhas, atenção/incerteza e andamento.
+por página na interface. O menu usa **um contador** de itens que precisam de ação
+(falhas + atenção), limitado visualmente a `99+`; a divisão completa fica na tela.
+Falha de consulta mostra um único `!` acessível, sem presumir zero pendências.
 
 Cada diagnóstico mostra etapa, código, operação, requisição, data, pacote/arquivo
 quando identificados, causa comprovada, impacto e orientação. A interface usa
@@ -622,9 +756,13 @@ A resolução mantém o diagnóstico original e sua referência. A exportação 
 as tentativas e seus problemas no próprio histórico, mesmo depois de concluída.
 Não foi criada tabela paralela de pendências nem encerramento manual sem evidência.
 
+Falhas de consulta GET aparecem em vermelho, com mensagem específica e **Tentar
+novamente** em Configurações e Processamentos. UUID, código, rota e status ficam
+em **Ver detalhes**. A Central indisponível permite tentar a consulta novamente.
+
 Se os documentos foram importados e a pasta falhar, o resultado é
 **“Documentos importados — exportação pendente”**. Corrija o destino e retome apenas
-a cópia. Se a resposta HTTP demorar, o sistema informa resultado não confirmado,
+a cópia. Se a resposta de uma alteração não puder ser confirmada, o sistema informa resultado não confirmado,
 sem presumir falha ou perda de documentos. Não há porcentagem fictícia por arquivo.
 
 Para experimentar com segurança, monte um ZIP sintético com o CT-e de demonstração
@@ -637,7 +775,7 @@ Contrato, localização, recuperação de pasta, testes e limitações em
 
 ## Banco de dados e armazenamento
 
-### Esquema exigido pelo código atual: V10
+### Esquema exigido pelo código atual: V14
 
 | Migração | Finalidade |
 | --- | --- |
@@ -651,9 +789,13 @@ Contrato, localização, recuperação de pasta, testes e limitações em
 | V8 | Usuários, auditoria e histórico persistente de processamento |
 | V9 | Configuração da operação, testes, recebimentos, notificações, exportações e seus arquivos |
 | V10 | Correlação, resolução de processamentos e histórico de tentativas/diagnósticos de recuperação da exportação |
+| V11, em Java | Conferências da confirmação ao motorista, revisão da seleção e ampliação do histórico de notificações para REAL, snapshot e reenvio vinculado |
+| V12 | Versão otimista de operadores |
+| V13 | Responsabilidade e eventos auditados da fila, sem duplicar históricos técnicos |
+| V14 | Índices de paginação e consultas compartilhadas |
 
 A aplicação valida o esquema com `spring.jpa.hibernate.ddl-auto=validate` e exige
-histórico Flyway até V10. As exclusões de ZIP reutilizam colunas existentes de
+histórico Flyway até V14. As exclusões de ZIP reutilizam colunas existentes de
 arquivamento e não acrescentaram migração.
 
 Migrações automáticas ficam desativadas por padrão. Bancos existentes precisam
@@ -704,10 +846,10 @@ e `ROTABRASIL_ADMIN_HASH`. A CLI `br.com.rotabrasil.manutencao.GerarHashSenha` l
 a senha em terminal interativo, sem recebê-la como argumento. O perfil de operação
 usa cookie `Secure` e requer configuração de HTTPS compatível com a implantação.
 
-**Pendência conhecida:** o teste de navegador do fluxo protegido encontrou **404 em
-`GET /login`**, sem formulário. Autenticação/permissões da API possuem testes, mas
-o acesso autenticado completo pela interface depende de resolver essa entrega da
-tela de login. Veja [o registro da modernização](docs/modernizacao-frontend.md).
+`GET /login` entrega formulário próprio integrado ao Spring Security. O 404 do
+[registro histórico da modernização](docs/modernizacao-frontend.md) foi superado
+no código atual. Veja [uso compartilhado](docs/uso-compartilhado.md) para contratos,
+permissões, limitações e roteiro com dois operadores.
 
 ## Como executar localmente
 
@@ -719,6 +861,10 @@ tela de login. Veja [o registro da modernização](docs/modernizacao-frontend.md
 
 Confira `java -version` e `mvn -version`. A aplicação usa a porta 8080 por padrão.
 Os comandos a seguir compilam fora do repositório e iniciam uma base nova isolada.
+Use o frontend **de dentro desse mesmo JAR**; não acrescente
+`spring.web.resources.static-locations=file:.../src/main/resources/static/` a um JAR
+anterior. Essa combinação reproduziu os dois erros 404. O painel agora verifica
+`GET /api/versao` antes de inicializar e identifica backend incompatível.
 
 ### Windows / PowerShell
 
@@ -728,10 +874,16 @@ $Build = Join-Path $env:TEMP 'opencode/rotabrasil-build'
 mvn -B "-Drotabrasil.build.directory=$Build" -DskipTests clean package
 
 # Criar uma área nova para esta demonstração.
+Get-CimInstance Win32_Process -Filter "Name='java.exe'" | Select-Object ProcessId, CommandLine
+if (Get-NetTCPConnection -State Listen -LocalPort 8080 -ErrorAction SilentlyContinue) {
+  throw 'Porta 8080 ocupada. Identifique a instância antes de iniciar outra.'
+}
 $Demo = Join-Path $env:TEMP ('opencode/rotabrasil-demo-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $Demo -Force | Out-Null
 $Db = (Join-Path $Demo 'banco') -replace '\\', '/'
 $Files = Join-Path $Demo 'viagens'
+$Exports = Join-Path $Demo 'exportacoes'
+New-Item -ItemType Directory -Path $Exports | Out-Null
 
 $RunArgs = @(
   '-jar', "$Build/rota-brasil-0.0.1-SNAPSHOT.jar",
@@ -740,6 +892,7 @@ $RunArgs = @(
   "--spring.datasource.url=jdbc:h2:file:$Db;WRITE_DELAY=0",
   '--spring.flyway.enabled=true', '--spring.h2.console.enabled=false',
   "--rotabrasil.arquivos.viagens=$Files",
+  "--rotabrasil.exportacao.raiz=$Exports",
   '--rotabrasil.email.modo=SIMULADO'
 )
 java @RunArgs
@@ -751,6 +904,7 @@ java @RunArgs
 BUILD_DIR="${TMPDIR:-/tmp}/rotabrasil-build"
 mvn -B "-Drotabrasil.build.directory=$BUILD_DIR" -DskipTests clean package
 DEMO_DIR="$(mktemp -d "${TMPDIR:-/tmp}/rotabrasil-demo.XXXXXX")"
+mkdir "$DEMO_DIR/exportacoes"
 
 java -jar "$BUILD_DIR/rota-brasil-0.0.1-SNAPSHOT.jar" \
   --spring.profiles.active=desenvolvimento \
@@ -758,12 +912,19 @@ java -jar "$BUILD_DIR/rota-brasil-0.0.1-SNAPSHOT.jar" \
   "--spring.datasource.url=jdbc:h2:file:$DEMO_DIR/banco;WRITE_DELAY=0" \
   --spring.flyway.enabled=true --spring.h2.console.enabled=false \
   "--rotabrasil.arquivos.viagens=$DEMO_DIR/viagens" \
+  "--rotabrasil.exportacao.raiz=$DEMO_DIR/exportacoes" \
   --rotabrasil.email.modo=SIMULADO
 ```
 
 Abra **[http://localhost:8080](http://localhost:8080)**. A migração automática habilitada
 nesses exemplos destina-se apenas à base nova criada para a demonstração.
 Os comandos de empacotamento usam `-DskipTests`; as verificações estão na seção de testes.
+Em outro terminal, verifique com limite de tempo:
+`curl --max-time 5 http://127.0.0.1:8080/api/versao` e
+`curl --max-time 5 http://127.0.0.1:8080/api/configuracoes`.
+No Linux, confira antes `ss -ltnp` e os processos Java. Se a aplicação não iniciar,
+consulte seu log; não encerre processos desconhecidos. `java -jar` permanece aberto
+por ser o servidor; não espere seu encerramento como evidência de prontidão.
 
 ### Usar, reiniciar e limpar o ambiente local
 
@@ -799,6 +960,8 @@ externa do Spring Boot permitem definir os valores para cada ambiente.
 | `rotabrasil.arquivos.viagens` | Raiz do acervo de XMLs e PDFs |
 | `rotabrasil.exportacao.raiz` | Raiz externa autorizada para cópias; aceita `ROTABRASIL_EXPORTACAO_RAIZ`; vazia por padrão |
 | `rotabrasil.email.modo` | `SIMULADO` por padrão; seleção explícita de `REAL` para o adaptador SMTP |
+| `rotabrasil.notificacoes.modo` | Confirmação ao motorista: `SIMULADO` por padrão; independente do modo documental |
+| `rotabrasil.notificacoes.tipo-conta` | `NAO_IDENTIFICADA` por padrão; REAL requer identificação explícita como `OUTLOOK_PESSOAL` ou `MICROSOFT_365` |
 | `rotabrasil.email.limite-arquivo-bytes` / `.limite-total-bytes` | Limites dos anexos: 20 MiB individual e 100 MiB somados |
 | `rotabrasil.seguranca.ativa` | Ativa o controle de acesso; exigido no perfil operacional e no SMTP real |
 
@@ -810,7 +973,7 @@ fracionários em campos inteiros, para manter os contratos de entrada explícito
 
 ### Como usar a nova aba
 
-1. Prepare um banco **V10** e abra **Configurações** (`/#configuracoes`). A migração
+1. Prepare um banco **V14** e abra **Configurações** (`/#configuracoes`). A migração
    do banco em uso não foi executada nesta entrega e exige autorização específica.
 2. Informe o **remetente da operação**, correspondente à conta Outlook que recebe
    os ZIPs. Salvar o endereço não configura senha nem autenticação SMTP.
@@ -821,19 +984,24 @@ fracionários em campos inteiros, para manter os contratos de entrada explícito
    teste é separado e vale apenas para a simulação. Os resultados ficam persistidos.
 
 Alterações não salvas são identificadas e desabilitam os testes até serem salvas.
-Com segurança ativa, a configuração exige ADMIN e CSRF; em desenvolvimento isolado
-o acesso continua local, sem novo login ou gestão de usuários.
+Com segurança ativa, a configuração exige ADMIN e CSRF. Em desenvolvimento isolado,
+o acesso continua em loopback, sem autenticação; esse perfil não serve para uso
+compartilhado em rede. O perfil operacional usa login individual.
 
 ### Endereços e eventos separados
 
 - **Remetente da operação:** conta Outlook configurada na aba.
-- **Destinatário da confirmação:** remetente original da mensagem, informado pelo
-  operador em **Importar ZIP → Quem receberá a confirmação deste upload?**.
+- **Destinatário da confirmação:** motorista informado explicitamente pelo operador
+  em **Importar ZIP → E-mail do motorista para confirmação**, corrigível na conferência.
 - **Destinatário dos documentos do cliente:** permanece no fluxo da Central de
   envios, sem substituição pelo remetente ou pelo destinatário da confirmação.
 
 Não há destinatário interno fixo. O ZIP sozinho não informa de quem veio o e-mail.
 O recebimento automático pelo Outlook permanece uma integração futura.
+
+A seção **Confirmação de recebimento ao motorista** prepara e confirma uma mensagem
+manual por recebimento. Os eventos abaixo são contexto, não vários e-mails reais.
+Tentativas manuais usam `CONFIRMACAO_MOTORISTA` no histórico de notificações existente.
 
 O painel permite autorizar a **simulação dos avisos desta operação** ou simular
 individualmente um aviso pendente. **Ver avisos**, no pacote importado, consulta
@@ -854,7 +1022,7 @@ A cópia desta versão fica **no computador onde o backend executa**. Se o naveg
 acessa um servidor remoto, os arquivos ficam naquele servidor, não no computador
 do navegador. O painel não aceita caminho arbitrário nem oferece acesso livre ao disco.
 
-O responsável deve criar uma pasta separada do acervo interno e configurar:
+O responsável deve criar uma pasta **fora do checkout e separada do acervo interno** e configurar:
 
 ```powershell
 $env:ROTABRASIL_EXPORTACAO_RAIZ = 'C:/RotaBrasil/Exportacoes'
@@ -863,6 +1031,9 @@ $env:ROTABRASIL_EXPORTACAO_RAIZ = 'C:/RotaBrasil/Exportacoes'
 Ou fornecer `--rotabrasil.exportacao.raiz=/pasta/autorizada` na inicialização.
 A raiz precisa existir e permitir gravação/publicação por hard link. O teste da
 aba verifica essas capacidades; não há promessa de acesso a pastas de rede.
+Uma raiz que sobreponha o checkout detectado no diretório de execução ou na origem
+do JAR/classes impede a inicialização com **Configuração incompatível**. O sistema
+não troca esse destino silenciosamente. Corrija a propriedade externa explicitamente.
 
 Exemplo da estrutura controlada pelo sistema:
 
@@ -903,7 +1074,39 @@ de 20 MiB por arquivo, 100 arquivos documentais e 100 MiB de cópia incluindo ma
 Contrato, recuperação, testes e instruções completas em
 [Configurações, exportação e notificações](docs/configuracoes-exportacao-notificacoes.md).
 
+## Confirmação de recebimento ao motorista
+
+1. Baixe o ZIP manualmente pelo Outlook e selecione-o no RotaBrasil.
+2. Informe **E-mail do motorista para confirmação**. O backend valida um único
+   endereço; não o extrai do ZIP nem o substitui pelo cliente do CT-e.
+3. Confira/processe o pacote pelo fluxo existente. A confirmação pode informar
+   recebimento ou pendências sem declarar importação bem-sucedida indevidamente.
+4. Na seção de recebimento, revise/corrija o endereço e use **Conferir confirmação
+   ao motorista**. Confira remetente, destinatário, assunto, corpo, pacote e modo.
+5. Marque a autorização explícita e confirme a simulação ou o envio REAL disponível.
+6. Consulte a tentativa no recebimento, em **Ver avisos** ou na Central de Pendências.
+   `ACEITO_SMTP` não significa entregue/lido. Falha do e-mail preserva a importação
+   e a exportação. Reenvio deliberado exige nova conferência vinculada à tentativa anterior.
+
+O padrão é `rotabrasil.notificacoes.modo=SIMULADO`. O modo REAL requer ativação
+externa, segurança ativa, sessão OPERADOR/ADMIN, CSRF, tipo de conta identificado,
+remetente compatível e OAuth2/XOAUTH2. O token é fornecido por arquivo externo protegido,
+renovado por ferramenta de identidade externa; não é recebido no painel ou em argumentos
+de comandos. A conta ainda não foi identificada nesta entrega, e nenhum envio externo
+foi executado. Não existe fallback silencioso para simulação ou autenticação básica.
+
+Em Configurações, **Conferir teste REAL** só fica disponível com pré-requisitos
+válidos. ADMIN revisa uma mensagem sintética e confirma aquele teste explicitamente.
+Salvar o endereço não autentica a conta Microsoft. O acesso ao RotaBrasil já usa
+o formulário `/login`, com sessão e CSRF; a autorização OAuth2 do SMTP continua externa.
+
+Contrato, autenticação Microsoft, parâmetros externos, teste controlado, histórico e
+recuperação em [Etapa E-mail — confirmação ao motorista](docs/confirmacao-motorista.md).
+
 ## Envio de e-mail
+
+Esta seção trata do **envio documental ao cliente**, independente da confirmação
+ao motorista descrita acima. Ativar a confirmação REAL não ativa este modo REAL.
 
 O painel utiliza a conferência persistida, com leitura dos arquivos, validação de
 integridade e snapshot de destinatário/anexos. A confirmação recebe o ID da
@@ -933,6 +1136,8 @@ O modo real possui adaptador próprio, separado da CLI Gmail, e depende de:
 | `rotabrasil.email.smtp.usuario` / `.senha` | Credenciais externas de autenticação |
 | `rotabrasil.email.smtp.remetente` | Endereço único do remetente |
 | `rotabrasil.email.smtp.timeout-ms` | Timeout de 1.000 a 30.000 ms; padrão 10.000 |
+| `rotabrasil.email.smtp.autenticacao` | `BASIC` legado ou `XOAUTH2`; confirmação Microsoft REAL exige `XOAUTH2`, sem fallback |
+| `rotabrasil.email.smtp.oauth2.token-arquivo` | Arquivo externo protegido de token/expiração, lido a cada uso; nenhuma credencial na API |
 
 O adaptador exige STARTTLS, verificação de identidade do servidor e, para H2 em
 arquivo, `WRITE_DELAY=0`. Credenciais devem ser fornecidas externamente, sem commit.
@@ -963,6 +1168,7 @@ Confira os contratos detalhados antes de integrar outro consumidor.
 | `GET /api/consulta/resumo` | Indicadores e pendências reais |
 | `GET /api/consulta/viagens` / `GET /api/consulta/clientes` | Consultas paginadas disponíveis no backend |
 | `GET /api/sessao` | Usuário, papéis, modo de e-mail e informações de CSRF |
+| `GET /api/versao` | Versão Maven, instante de build, contrato e SHA-256 de recursos estáticos do JAR; segue a autenticação das consultas no perfil protegido |
 
 ### Documentos, pacotes e processamento
 
@@ -995,6 +1201,10 @@ Confira os contratos detalhados antes de integrar outro consumidor.
 | `GET /api/exportacoes/{id}` / `POST /api/exportacoes/{id}/retomar` | Consultar ou retomar itens pendentes no destino original |
 | `GET /api/recebimentos?sha256=...` / `GET /api/recebimentos/{id}` | Consultar recebimento e avisos separados dos envios documentais |
 | `POST /api/recebimentos/{id}/notificacoes/{notificacaoId}/simular` | Confirmar simulação idempotente de um aviso |
+| `POST /api/recebimentos/{id}/conferencias-confirmacao` | Conferir mensagem ao motorista com destinatário explícito e `anteriorId` em reenvio |
+| `POST /api/recebimentos/{id}/confirmacoes` | Confirmar `{conferenciaId, confirmado:true}` sem duplicar tentativa |
+| `POST /api/configuracoes/conferencias-email-real` / `POST /api/configuracoes/confirmacoes-email-real` | ADMIN confere e confirma teste sintético REAL com pré-requisitos válidos |
+| `GET /api/configuracoes/conferencias-email-real/{id}` | Consultar snapshot do teste, sem envio |
 
 ### Conferência e envio manual
 
@@ -1056,6 +1266,11 @@ node scripts/testar-previa-pdf.cjs "$Build/rota-brasil-0.0.1-SNAPSHOT.jar" "$Ui/
 node scripts/testar-modernizacao.cjs "$Build/rota-brasil-0.0.1-SNAPSHOT.jar" "$Ui/modernizacao"
 node scripts/testar-configuracoes.cjs "$Build/rota-brasil-0.0.1-SNAPSHOT.jar" "$Ui/configuracoes"
 node scripts/testar-diagnostico-recuperacao.cjs "$Build/rota-brasil-0.0.1-SNAPSHOT.jar" "$Ui/recuperacao"
+node scripts/testar-estabilizacao.cjs "$Build/rota-brasil-0.0.1-SNAPSHOT.jar" "$Ui/estabilizacao"
+node scripts/testar-confirmacao-motorista.cjs "$Build/rota-brasil-0.0.1-SNAPSHOT.jar" "$Ui/motorista"
+
+# Fluxo local combinado, sem exigir formulário de login:
+node scripts/testar-envio-manual.cjs "$Build/rota-brasil-0.0.1-SNAPSHOT.jar" "$Ui/envio-local" --somente-local
 
 # Fluxo ampliado; sua etapa autenticada possui a pendência /login documentada:
 node scripts/testar-envio-manual.cjs "$Build/rota-brasil-0.0.1-SNAPSHOT.jar" "$Ui/envio-manual"
@@ -1066,7 +1281,59 @@ do repositório. Em Linux, a instalação do Chromium pode exigir `--with-deps`,
 no workflow. Os scripts Python `testar-painel.py` e `testar-pacotes.py` conservam
 verificações de etapas anteriores; a navegação atual é exercitada pelos scripts Node.
 
-### Últimos resultados registrados
+### Resultados atuais — uso compartilhado V14
+
+Última execução completa: **387 testes contabilizados, 386 aprovados, zero
+falhas/erros e 1 ignorado** (symlink no Windows). Inclui login, CSRF, permissões,
+revogação de sessões, último ADMIN em concorrência, conflito de edição, atribuição
+atômica, filtros/paginação e verificações independentes de saúde.
+
+| Navegador — execuções independentes | Resultado |
+| --- | --- |
+| Uso compartilhado, dois operadores e celular | 9 verificações aprovadas |
+| Envio manual, incluindo login/logout protegido | 14 verificações aprovadas |
+| Confirmação ao motorista | 7 verificações aprovadas |
+| Configurações e exportação | 7 verificações aprovadas |
+| Diagnóstico e recuperação | 7 verificações aprovadas |
+
+Nenhum erro JavaScript nas execuções aprovadas e nenhum envio externo. Build,
+relatórios e capturas ficam fora do checkout. Comandos e evidências em
+[Verificação da entrega](docs/uso-compartilhado.md#verificação-da-entrega).
+Os resultados históricos a seguir não devem ser somados aos atuais.
+
+### Resultados históricos — Etapa E-mail V11
+
+- Suíte JUnit **completa**, concluída em 31/10/2026 às 01:56:57 -03:00:
+  **378 contabilizados, 377 aprovados, zero falhas/erros, 1 ignorado** por privilégio
+  de symlink no Windows. Build externo em `rotabrasil-email-motorista-build`.
+- Navegador em execuções separadas: confirmação ao motorista **7**, Configurações
+  **7**, recuperação **7**, estabilização **5** e envio documental local **13**
+  verificações/cenários aprovados, sem erros JavaScript inesperados.
+- REAL foi exercitado com transporte controlado nos testes HTTP protegidos; nenhuma
+  conexão SMTP externa foi feita. Não há homologação real da conta.
+- Foi preservada a limitação do acesso protegido no navegador (`/login` 404),
+  separada da simulação local e da validação de sessão/papéis/CSRF nos testes HTTP.
+- Comando completo usado: `mvn -B "-Drotabrasil.build.directory=$Build" -DargLine=-Xmx768m clean test`.
+  O limite de heap controla o ambiente de teste, sem alterar regras de domínio.
+- Evidências, testes e pendências: [Confirmação ao motorista](docs/confirmacao-motorista.md).
+
+Os totais acima pertencem a esta revisão; não são soma dos registros abaixo.
+
+### Resultados históricos — estabilização V10
+
+- Suíte JUnit completa: **360 testes, 359 aprovados, zero falhas/erros, 1 ignorado**
+  (symlink sem privilégio no Windows). Execução final concluída em 31/10/2026;
+  não é soma de recortes. Build externo em `rotabrasil-estabilizacao-build`.
+- Navegador: Configurações **7**, diagnóstico/recuperação **7**, estabilização **5**,
+  modernização **10** verificações aprovadas, em execuções separadas com bases isoladas.
+- Fluxo ampliado de envio: **13 cenários locais concluídos**; a continuação protegida
+  bloqueia em `GET /login` 404. O resultado local é salvo separadamente e não transforma
+  o cenário protegido em aprovado. Não houve SMTP real.
+- O teste de Configurações conserva `fixture-sintetica.zip` na saída externa para
+  experimentar o roteiro manual com dois CT-es e fatura compartilhada.
+- Evidências, falhas intermediárias investigadas e limites: [estabilização](docs/estabilizacao.md).
+
+### Resultados históricos de entregas anteriores
 
 | Verificação | Resultado documentado |
 | --- | --- |
@@ -1083,22 +1350,25 @@ verificações de etapas anteriores; a navegação atual é exercitada pelos scr
 | Console das três execuções acima | Nenhum erro JavaScript observado |
 | Empacotamento Maven externo | Aprovado |
 | Fluxo ampliado de envio manual | 13 cenários concluídos na execução registrada; etapa de login bloqueada por 404 |
-| Suíte JUnit completa da revisão atual | Não executada nesta entrega; os resultados V9 são de recortes direcionados |
+| Suíte JUnit completa na entrega V9/V10 anterior | Não executada naquela entrega; os resultados anteriores são de recortes direcionados |
 
 Esses números são de recortes e execuções registradas, não o total de testes do
 repositório. Resultados históricos de outras versões permanecem em `docs/` e não
-devem ser somados como se fossem uma única execução. O workflow existente também
-precisa da resolução do login para concluir seu fluxo autenticado de navegador.
+devem ser somados como se fossem uma única execução. O cenário autenticado de
+navegador foi concluído na evolução V14; resultados atuais em
+[uso compartilhado](docs/uso-compartilhado.md#verificação-da-entrega).
 
 ## Limitações e próximos passos
 
-1. **Login no navegador:** corrigir a entrega do formulário `/login` no fluxo protegido.
-2. **SMTP real:** configurar e homologar remetente, credenciais e conectividade no ambiente de uso.
+1. **Homologação externa da confirmação:** identificar tipo de conta Outlook, autorizar OAuth2 restrito a envio, fornecer/renovar token externo e aprovar um teste específico de remetente/destinatário/mensagem. Código implementado; envio externo não executado.
+2. **Implantação no ambiente de uso:** verificar separadamente o esquema V14 do banco e o acesso à pasta externa; migração operacional exige autorização e backup verificado.
 3. **Documentos recentes globais:** dependem de consulta unificada com tipo, viagem, data de processamento e estado; esses metadados não estão completos nos DTOs atuais.
-4. **Escala das consultas:** filtros/ordenação globais de viagens/clientes com paginação de servidor exigem ampliar os contratos atuais para grandes bases.
-5. **Integrações de entrada:** Outlook/caixa de entrada e recebimento automático de ZIP permanecem pendentes.
+4. **Escala das consultas:** paginação/filtros/ordenação estão no servidor; busca de substring ainda pode exigir varredura SQL. Seletores são limitados e permitem pesquisa explícita.
+5. **Evidência de backup:** manifesto não comprova por si só verificação ou restauração testada; o painel mantém estados não verificados quando falta evidência confiável.
 
 As decisões atuais de destinatário, vínculos, confirmação e reenvio são manuais.
+Baixar o ZIP manualmente permanece o escopo combinado; leitura automática do Outlook
+não é pré-requisito desta entrega nem da estabilização.
 Não há inferência de destinatários, repetição automática de envio ou promessa de
 entrega/leitura de e-mail. PDFs e XMLs continuam sujeitos aos limites de conferência
 descritos neste README e nos contratos específicos.
@@ -1107,6 +1377,10 @@ descritos neste README e nos contratos específicos.
 
 | Documento | Assunto |
 | --- | --- |
+| [Uso diário compartilhado](docs/uso-compartilhado.md) | Login, operadores, concorrência, fila, busca, saúde, contratos V14 e implantação centralizada |
+| [Visão geral do sistema — 21/10/2026](docs/visao-geral-do-sistema.md) | Levantamento histórico e diagramas, também em PDF e Word |
+| [Etapa E-mail — confirmação ao motorista](docs/confirmacao-motorista.md) | Mensagem manual, Microsoft OAuth2, configuração segura, conferência, idempotência, reenvio, V11, testes e homologação pendente |
+| [Estabilização atual](docs/estabilizacao.md) | Causa reproduzida dos 404, versões, sidebar, pasta externa, suíte completa e roteiro de recuperação |
 | [Diagnóstico e Recuperação — V10](docs/diagnostico-recuperacao.md) | Central de Pendências, erros vermelhos, causas, impacto, suporte, idempotência e resolução comprovada |
 | [Configurações, exportação e notificações](docs/configuracoes-exportacao-notificacoes.md) | Oitava tela, remetente Outlook, destinatário manual, raiz autorizada e retomada das cópias |
 | [Exclusão de cliente e documentos](docs/exclusao-cliente-com-documentos.md) | Exclusão conjunta, PDFs compartilhados, confirmação e recuperação da limpeza |

@@ -12,8 +12,9 @@ import java.util.List;
 @RestController @RequestMapping("/api/viagens") @RequiredArgsConstructor
 public class ViagemController {
     private final CadastroConsultaService service;
+    private final br.com.rotabrasil.service.EdicaoCompartilhada edicao;
     @GetMapping public List<ViagemResponse> listar() { return service.listarViagens(); }
-    @GetMapping("/{id}") public ViagemResponse buscar(@PathVariable @Positive Long id) { return service.buscarViagem(id); }
+    @GetMapping("/{id}") public org.springframework.http.ResponseEntity<ViagemResponse> buscar(@PathVariable @Positive Long id) { var v=service.buscarViagem(id);return org.springframework.http.ResponseEntity.ok().eTag(edicao.versao(v)).body(v); }
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
     public ViagemResponse cadastrar(@Valid @RequestBody ViagemRequest viagem) { return service.cadastrarViagem(viagem); }
     @PutMapping("/{id}")

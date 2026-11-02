@@ -1,7 +1,6 @@
 import { $, state, element, api, vazio, data, podeAdministrar } from './painel-base.js';
 import { navegarPara } from './painel-navegacao.js';
 
-const normalizar = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
 const TAMANHO = 20;
 const cnpj = value => value ? String(value).replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : 'Não informado';
 function acao(text, handler, className = 'row-action') {
@@ -13,23 +12,11 @@ export function criarConsultas({ abrirViagem, excluirCliente, excluirViagem }) {
   let nomesClientes = new Map();
   const dialog = $('detalhes-cadastro');
   let detailVersion = 0, detailRequest, origin, detailAction;
-  const nomeCliente = viagem => nomesClientes.get(viagem.clienteId) || `Cliente #${viagem.clienteId}`;
+  const nomeCliente = viagem => viagem.clienteNome || nomesClientes.get(viagem.clienteId) || `Cliente #${viagem.clienteId}`;
+  let versaoViagens=0,versaoClientes=0,timerViagens,timerClientes;
+  const parametros=values=>{const p=new URLSearchParams();for(const [k,v] of Object.entries(values))if(v!==''&&v!=null)p.set(k,v);return p;};
+  function paginaServidor(r,prefix){$(`${prefix}-anterior`).disabled=r.pagina===0;$(`${prefix}-proxima`).disabled=(r.pagina+1)*r.tamanho>=r.total;$(`pagina-${prefix}`).textContent=`Página ${r.pagina+1} de ${Math.max(1,Math.ceil(r.total/r.tamanho))} · ${r.total} resultado(s)`;}
 
-  function paginar(items, pagina, prefix) {
-    const pages = Math.max(1, Math.ceil(items.length / TAMANHO));
-    const current = Math.min(pagina, pages - 1);
-    $(`${prefix}-anterior`).disabled = busy || current === 0;
-    $(`${prefix}-proxima`).disabled = busy || current + 1 >= pages;
-    $(`pagina-${prefix}`).textContent = `Página ${current + 1} de ${pages} · ${items.length} resultado(s)`;
-    return { pagina: current, items: items.slice(current * TAMANHO, (current + 1) * TAMANHO) };
-  }
-  function ordenar(a, b) {
-    const value = viagem => coluna === 'cliente' ? nomeCliente(viagem) : viagem[coluna];
-    const av = value(a), bv = value(b);
-    if (av == null || av === '') return bv == null || bv === '' ? b.id - a.id : 1;
-    if (bv == null || bv === '') return -1;
-    return String(av).localeCompare(String(bv), 'pt-BR', { numeric:true, sensitivity:'base' }) * direcao || b.id - a.id;
-  }
   function linhaViagem(viagem, recent = false) {
     const row = element('tr'); row.dataset.viagemId = String(viagem.id);
     const number = element('td'); number.append(element('strong', viagem.numero));
@@ -47,35 +34,24 @@ export function criarConsultas({ abrirViagem, excluirCliente, excluirViagem }) {
     }
     row.append(number, element('td', nomeCliente(viagem)), element('td', data(viagem.data)), status, actions); return row;
   }
-  function viagens() {
-    const query = normalizar($('buscar-viagem').value.trim()), cliente = $('filtro-cliente').value;
-    const inicio = $('filtro-inicio').value, fim = $('filtro-fim').value, situacao = $('filtro-situacao').value.trim();
-    if (inicio && fim && inicio > fim) {
-      vazio($('lista-viagens'), 5, 'A data inicial deve ser anterior ou igual à data final.');
-      $('resultado-consulta-viagens').textContent = 'Revise o intervalo de datas.';
-      paginar([], 0, 'viagens'); return;
-    }
-    const items = state.viagens.filter(viagem =>
-      (!query || normalizar(`${viagem.numero} ${nomeCliente(viagem)}`).includes(query)) &&
-      (!cliente || String(viagem.clienteId) === cliente) && (!inicio || (viagem.data && viagem.data >= inicio)) &&
-      (!fim || (viagem.data && viagem.data <= fim)) && (!situacao || viagem.status === situacao)).sort(ordenar);
-    const page = paginar(items, paginaViagens, 'viagens'); paginaViagens = page.pagina;
-    $('resultado-consulta-viagens').textContent = `${items.length} de ${state.viagens.length} viagem(ns) · ${TAMANHO} por página`;
-    if (page.items.length) $('lista-viagens').replaceChildren(...page.items.map(item => linhaViagem(item)));
-    else vazio($('lista-viagens'), 5, state.viagens.length ? 'Nenhuma viagem corresponde aos filtros. Use Limpar filtros para ampliar a consulta.' : 'Nenhuma viagem por aqui. Importe um XML ou ZIP para começar.');
+  async function viagens() {
+    const seq=++versaoViagens;$('lista-viagens').setAttribute('aria-busy','true');$('resultado-consulta-viagens').textContent='Consultando viagens…';
+    try{const r=await api('/api/busca?'+parametros({entidade:'VIAGEM',busca:$('buscar-viagem').value.trim(),cliente:$('filtro-cliente').value,inicio:$('filtro-inicio').value,fim:$('filtro-fim').value,situacao:$('filtro-situacao').value,ordem:coluna,direcao:direcao===1?'ASC':'DESC',pagina:paginaViagens,tamanho:TAMANHO}));if(seq!==versaoViagens)return;
+    paginaServidor(r,'viagens');$('resultado-consulta-viagens').textContent=`${r.total} viagem(ns) · ${r.dataUtilizada}`;
+    if(r.itens.length)$('lista-viagens').replaceChildren(...r.itens.map(item=>linhaViagem(item)));else vazio($('lista-viagens'),5,'Nenhuma viagem corresponde aos filtros.');
     document.querySelectorAll('[data-ordenar]').forEach(button => {
       const active = button.dataset.ordenar === coluna;
       button.closest('th').setAttribute('aria-sort', active ? direcao === 1 ? 'ascending' : 'descending' : 'none');
       button.querySelector('span').textContent = active ? direcao === 1 ? '↑' : '↓' : '↕';
     });
+    }catch(e){if(seq===versaoViagens){vazio($('lista-viagens'),5,e.message);$('resultado-consulta-viagens').textContent='Consulta indisponível. Atualize os dados ou revise os filtros.';}}
+    finally{if(seq===versaoViagens)$('lista-viagens').setAttribute('aria-busy','false');}
   }
-  function clientes() {
-    const query = normalizar($('buscar-cliente').value.trim()), digits = query.replace(/\D/g, '');
-    const items = state.clientes.filter(cliente => !query || normalizar(`${cliente.nome} ${cliente.cnpj || ''}`).includes(query) || (digits && /^[\d\s./-]+$/.test(query) && (cliente.cnpj || '').includes(digits)))
-      .sort((a,b) => a.nome.localeCompare(b.nome, 'pt-BR', {sensitivity:'base'}));
-    const page = paginar(items, paginaClientes, 'clientes'); paginaClientes = page.pagina;
-    $('resultado-consulta-clientes').textContent = `${items.length} cliente(s) encontrado(s)`;
-    const rows = page.items.map(cliente => {
+  async function clientes() {
+    const seq=++versaoClientes;$('lista-clientes').setAttribute('aria-busy','true');$('resultado-consulta-clientes').textContent='Consultando clientes…';
+    try{const busca=$('buscar-cliente').value.trim(),r=await api('/api/busca?'+parametros({entidade:'CLIENTE',busca:/^[\d\s./-]+$/.test(busca)?busca.replace(/\D/g,''):busca,ordem:'nome',direcao:'ASC',pagina:paginaClientes,tamanho:TAMANHO}));if(seq!==versaoClientes)return;
+    paginaServidor(r,'clientes');$('resultado-consulta-clientes').textContent=`${r.total} cliente(s) encontrado(s)`;
+    const rows = r.itens.map(cliente => {
       const row = element('tr'); const info = element('td'); const identity = element('div', null, 'customer-identity');
       const avatar = element('span', (cliente.nome || '?').slice(0,1).toUpperCase(), 'client-avatar');
       const copy = element('div'); copy.append(element('strong', cliente.nome), element('small', `CNPJ ${cnpj(cliente.cnpj)}`)); identity.append(avatar, copy); info.append(identity);
@@ -88,9 +64,12 @@ export function criarConsultas({ abrirViagem, excluirCliente, excluirViagem }) {
       row.append(info, actions); return row;
     });
     if (rows.length) $('lista-clientes').replaceChildren(...rows);
-    else vazio($('lista-clientes'), 2, query ? 'Nenhum cliente corresponde ao nome ou CNPJ pesquisado.' : 'Os clientes aparecerão após a primeira importação.');
+    else vazio($('lista-clientes'),2,'Nenhum cliente corresponde ao nome ou CNPJ pesquisado.');
+    }catch(e){if(seq===versaoClientes){vazio($('lista-clientes'),2,e.message);$('resultado-consulta-clientes').textContent='Consulta indisponível.';}}
+    finally{if(seq===versaoClientes)$('lista-clientes').setAttribute('aria-busy','false');}
   }
   function filtrarCliente(id) {
+    if(![...$('filtro-cliente').options].some(o=>o.value===String(id)))$('filtro-cliente').add(new Option(`Cliente #${id}`,String(id)));
     for (const field of ['buscar-viagem','filtro-inicio','filtro-fim','filtro-situacao']) $(field).value = '';
     $('filtro-cliente').value = String(id); paginaViagens = 0; viagens();
     navegarPara('viagens',{foco:'filtro-cliente'});
@@ -110,7 +89,7 @@ export function criarConsultas({ abrirViagem, excluirCliente, excluirViagem }) {
       $('detalhes-titulo').textContent = tipo === 'cliente' ? item.nome : `Viagem ${item.numero}`;
       if (tipo === 'cliente') {
         campo(list,'CNPJ',cnpj(item.cnpj)); campo(list,'E-mail',item.email); campo(list,'Telefone',item.telefone);
-        campo(list,'Viagens nesta consulta',String(state.viagens.filter(viagem => viagem.clienteId === item.id).length));
+        const total=await api('/api/busca?'+parametros({entidade:'VIAGEM',cliente:item.id,tamanho:1}));if(version!==detailVersion||!dialog.open)return;campo(list,'Viagens cadastradas',String(total.total));
         detailAction = () => filtrarCliente(item.id); $('acao-detalhes').textContent = 'Ver viagens deste cliente →';
       } else {
         campo(list,'Cliente',nomeCliente(item)); campo(list,'Data da viagem',data(item.data)); campo(list,'Status',item.status);
@@ -125,9 +104,9 @@ export function criarConsultas({ abrirViagem, excluirCliente, excluirViagem }) {
   $('acao-detalhes').addEventListener('click', () => { const action = detailAction; origin = null; dialog.close(); action?.(); });
 
   function renderizar() { if (!busy) { viagens(); clientes(); } }
-  for (const id of ['buscar-viagem','filtro-situacao']) $(id).addEventListener('input', () => { paginaViagens = 0; renderizar(); });
+  for (const id of ['buscar-viagem','filtro-situacao']) $(id).addEventListener('input', () => { paginaViagens = 0;++versaoViagens;clearTimeout(timerViagens);timerViagens=setTimeout(viagens,300); });
   for (const id of ['filtro-cliente','filtro-inicio','filtro-fim']) $(id).addEventListener('change', () => { paginaViagens = 0; renderizar(); });
-  $('buscar-cliente').addEventListener('input', () => { paginaClientes = 0; renderizar(); });
+  $('buscar-cliente').addEventListener('input', () => { paginaClientes = 0;++versaoClientes;clearTimeout(timerClientes);timerClientes=setTimeout(clientes,300); });
   $('limpar-filtros').addEventListener('click', () => {
     for (const id of ['buscar-viagem','filtro-cliente','filtro-inicio','filtro-fim','filtro-situacao']) $(id).value = '';
     paginaViagens = 0; renderizar(); $('buscar-viagem').focus();

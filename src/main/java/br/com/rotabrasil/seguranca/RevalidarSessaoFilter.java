@@ -13,7 +13,8 @@ public class RevalidarSessaoFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest r,HttpServletResponse s,FilterChain c)throws IOException,ServletException {
         var a=SecurityContextHolder.getContext().getAuthentication();
         if(a!=null&&a.isAuthenticated()&&!a.getName().equals("anonymousUser"))try{
-            var u=usuarios.loadUserByUsername(a.getName());if(!u.isEnabled())throw new UsernameNotFoundException("Sessão indisponível");
+            var u=usuarios.loadUserByUsername(a.getName());var sessao=r.getSession(false);
+            if(!u.isEnabled() || (sessao!=null && sessao.getAttribute("rotabrasil.credencial")!=null && !java.util.Objects.equals(sessao.getAttribute("rotabrasil.credencial"),u.getPassword())))throw new UsernameNotFoundException("Sessão indisponível");
             SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(u,null,u.getAuthorities()));
         }catch(UsernameNotFoundException ex){SecurityContextHolder.clearContext();if(r.getSession(false)!=null)r.getSession(false).invalidate();if(!r.getRequestURI().startsWith(r.getContextPath()+"/api/")){s.sendRedirect(r.getContextPath()+"/login");return;}s.setStatus(401);s.setContentType("application/json;charset=UTF-8");s.getWriter().write("{\"mensagem\":\"Sessão encerrada; entre novamente\"}");return;}
         c.doFilter(r,s);

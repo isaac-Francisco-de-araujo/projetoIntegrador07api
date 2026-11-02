@@ -17,6 +17,16 @@ public class DestinoExportacaoService {
         this.acervo=Path.of(acervo).toAbsolutePath().normalize();
         if(this.raiz!=null&&(this.raiz.startsWith(this.acervo)||this.acervo.startsWith(this.raiz)))
             throw new IllegalStateException("Raiz de exportação deve ser separada do acervo interno");
+        validarForaDoProjeto(Path.of("").toAbsolutePath().normalize());
+        var origem=new org.springframework.boot.system.ApplicationHome(DestinoExportacaoService.class).getSource();
+        if(origem!=null)validarForaDoProjeto(origem.toPath().toAbsolutePath().normalize());
+    }
+    private void validarForaDoProjeto(Path inicio){
+        for(Path projeto=inicio;projeto!=null;projeto=projeto.getParent()){
+            if((Files.exists(projeto.resolve(".git"))||Files.exists(projeto.resolve("pom.xml"))&&Files.isDirectory(projeto.resolve("src")))
+                    &&this.raiz!=null&&(this.raiz.startsWith(projeto)||projeto.startsWith(this.raiz)))
+                throw new IllegalStateException("Configuração incompatível: raiz de exportação deve ficar fora do checkout do projeto; escolha explicitamente uma pasta externa");
+        }
     }
     public boolean autorizada(){return raiz!=null;}
     public void validarNome(String nome){
@@ -55,16 +65,18 @@ public class DestinoExportacaoService {
         Path base=resolver("");Files.createDirectory(LeituraSeguraArquivos.resolver(base,nome));
     }
     public String testar(String subpasta){
-        Path temporario=null,link=null;
+        Path temporario=null,link=null;String resultado=null;
         try{
             Path pasta=resolver(subpasta);
             temporario=Files.createTempFile(pasta,".rotabrasil-teste-",".tmp");
             Files.writeString(temporario,"Teste sintético de exportação RotaBrasil");
             link=temporario.resolveSibling(temporario.getFileName()+".link");Files.createLink(link,temporario);
             if(!Files.isSameFile(link,temporario))throw new IOException("PUBLICACAO_INDISPONIVEL");
-            return null;
-        }catch(IOException|UnsupportedOperationException|SecurityException ex){return codigo(ex);}
-        finally{try{if(link!=null)Files.deleteIfExists(link);if(temporario!=null)Files.deleteIfExists(temporario);}catch(IOException ignorada){}}
+        }catch(IOException|UnsupportedOperationException|SecurityException ex){resultado=codigo(ex);}
+        finally{
+            for(Path p:new Path[]{link,temporario})if(p!=null)try{Files.deleteIfExists(p);}catch(IOException|SecurityException ex){resultado="LIMPEZA_TESTE_PENDENTE";}
+        }
+        return resultado;
     }
     public static String codigo(Exception ex){
         if(ex instanceof AccessDeniedException||ex instanceof SecurityException)return "SEM_PERMISSAO";

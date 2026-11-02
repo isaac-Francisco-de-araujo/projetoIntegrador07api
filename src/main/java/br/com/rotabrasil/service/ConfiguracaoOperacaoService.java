@@ -15,18 +15,18 @@ import java.util.*;
 public class ConfiguracaoOperacaoService {
     private final JdbcTemplate jdbc;private final CoordenacaoImportacaoService coordenacao;
     private final DestinoExportacaoService destinos;private final ObjectMapper json;
-    private final String modo,remetenteSmtp;
+    private final String modo,remetenteSmtp;private final ConfiguracaoNotificacoes canal;
     public ConfiguracaoOperacaoService(JdbcTemplate jdbc,CoordenacaoImportacaoService coordenacao,DestinoExportacaoService destinos,ObjectMapper json,
-            @Value("${rotabrasil.email.modo:SIMULADO}") String modo,@Value("${rotabrasil.email.smtp.remetente:}") String remetenteSmtp){
-        this.jdbc=jdbc;this.coordenacao=coordenacao;this.destinos=destinos;this.json=json;this.modo=modo;this.remetenteSmtp=remetenteSmtp;
+            @Value("${rotabrasil.email.modo:SIMULADO}") String modo,@Value("${rotabrasil.email.smtp.remetente:}") String remetenteSmtp,ConfiguracaoNotificacoes canal){
+        this.jdbc=jdbc;this.coordenacao=coordenacao;this.destinos=destinos;this.json=json;this.modo=modo;this.remetenteSmtp=remetenteSmtp;this.canal=canal;
     }
     public Configuracao consultar(){
         return jdbc.queryForObject("SELECT * FROM configuracao_operacao WHERE id=1",(rs,n)->{
             String email=rs.getString("remetente");
             String situacao=email==null?"REMETENTE_NAO_INFORMADO":modo.equals("REAL")&&!email.equalsIgnoreCase(remetenteSmtp)?"REMETENTE_DIVERGE_SMTP":"ENDERECO_SALVO_SMTP_EXTERNO";
             return new Configuracao(rs.getLong("versao"),email,rs.getBoolean("exportacao_automatica"),rs.getString("subpasta"),
-                    "REMETENTE_CONFIRMACAO_AO_REMETENTE_ORIGINAL",modo,"SIMULADO",situacao,destinos.autorizada(),
-                    "Computador onde o backend RotaBrasil está executando; não é necessariamente o computador deste navegador.",destinos.listar(),rs.getObject("atualizada_em",OffsetDateTime.class));
+                    "REMETENTE_CONFIRMACAO_AO_REMETENTE_ORIGINAL",modo,canal.modo(),situacao,destinos.autorizada(),
+                    "Computador onde o backend RotaBrasil está executando; não é necessariamente o computador deste navegador.",destinos.listar(),rs.getObject("atualizada_em",OffsetDateTime.class),canal.consultar(email));
         });
     }
     @Transactional(isolation=Isolation.READ_COMMITTED)
@@ -71,4 +71,5 @@ public class ConfiguracaoOperacaoService {
     }
     private Teste teste(java.sql.ResultSet rs,int n)throws java.sql.SQLException{return new Teste(rs.getString("id"),rs.getString("tipo"),rs.getString("situacao"),rs.getString("mensagem"),rs.getObject("criado_em",OffsetDateTime.class));}
     public List<Teste> testes(){return jdbc.query("SELECT * FROM testes_configuracao ORDER BY criado_em DESC,id DESC LIMIT 20",this::teste);}
+    public Teste buscarTeste(String id){return jdbc.query("SELECT * FROM testes_configuracao WHERE id=?",this::teste,id).stream().findFirst().orElseThrow(()->new RecursoNaoEncontradoException("Teste não encontrado"));}
 }

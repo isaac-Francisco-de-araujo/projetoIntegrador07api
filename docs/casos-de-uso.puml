@@ -1,6 +1,25 @@
 @startuml
+actor "Operador identificado" as MultiOperador
+actor "Administrador de acessos" as MultiAdmin
+usecase "Login individual / logout" as MultiLogin
+usecase "Gerenciar operadores e redefinir acesso" as MultiUsuarios
+MultiOperador --> MultiLogin
+MultiAdmin --> MultiUsuarios
+usecase "Revisar conflito de versão" as MultiConflito
+usecase "Consultar fila / assumir / liberar" as MultiFila
+usecase "Transferir responsabilidade com auditoria" as MultiTransferir
+usecase "Busca paginada no servidor" as MultiBusca
+usecase "Consultar saúde e evidências" as MultiSaude
+MultiOperador --> MultiConflito
+MultiOperador --> MultiFila
+MultiOperador --> MultiBusca
+MultiOperador --> MultiSaude
+MultiAdmin --> MultiTransferir
 left to right direction
 actor Operador
+actor "Operador autenticado\nOPERADOR / ADMIN" as Autenticado
+Autenticado --|> Operador
+actor "Servidor SMTP Microsoft\nOAuth2 / STARTTLS" as SMTP
 actor "Sistema externo\n(produz XML/PDF)" as Externo
 rectangle RotaBrasil {
   usecase "Selecionar e conferir ZIP\ncom várias viagens" as ZIP
@@ -24,6 +43,12 @@ rectangle RotaBrasil {
   usecase "Informar destinatário da confirmação\nno upload manual" as DestinatarioAviso
   usecase "Registrar eventos separados\ne avisos sem anexos fiscais" as Eventos
   usecase "Simular avisos idempotentes\nsem enviar e-mail real" as Avisos
+  usecase "Conferir mensagem ao motorista\nremetente, destino, texto e estado conhecido" as ConferirMotorista
+  usecase "Confirmar manualmente\nSIMULADO ou envio REAL autorizado" as ConfirmarMotorista
+  usecase "Registrar tentativa no histórico existente\ne snapshot antes do SMTP" as RegistrarMotorista
+  usecase "Executar SMTP sem anexos fiscais\ne registrar aceite, recusa ou incerteza" as TransportarMotorista
+  usecase "Conferir e confirmar reenvio deliberado\nvinculado à última tentativa" as ReenviarMotorista
+  usecase "Conferir e confirmar teste REAL sintético\nADMIN, configuração válida e autorização" as TesteReal
   usecase "Exportar cópia de XMLs/PDFs\ncom SHA-256 e manifesto" as Exportar
   usecase "Consultar arquivos exportados\ne pendências por item" as Exportados
   usecase "Retomar somente a exportação\nsem reimportar ou reenviar" as Retomar
@@ -64,6 +89,18 @@ ZIP ..> Eventos : <<include>> recebimento/conferência/pendências
 Importar ..> Eventos : <<include>> commit confirmado
 Avisos ..> Eventos : <<include>> snapshot e chave idempotente
 Operador --> Avisos
+Operador --> ConferirMotorista
+Operador --> ConfirmarMotorista : SIMULADO
+Autenticado --> ConfirmarMotorista : REAL, CSRF e opt-in
+ConferirMotorista ..> DestinatarioAviso : <<include>> destinatário explícito/corrigível
+ConfirmarMotorista ..> ConferirMotorista : <<include>> revalidar conferência
+ConfirmarMotorista ..> RegistrarMotorista : <<include>> commit curto
+ConfirmarMotorista ..> TransportarMotorista : <<include>> se REAL, somente tentativa nova
+SMTP --> TransportarMotorista : REAL com OAuth2
+Operador --> ReenviarMotorista
+ReenviarMotorista ..> ConfirmarMotorista : <<include>> nova conferência e vínculo anterior
+Autenticado --> TesteReal : somente ADMIN
+TesteReal ..> Configurar : <<include>> pré-requisitos externos
 Operador --> Exportar : ação manual
 Exportar ..> Importar : <<extend>> automático habilitado, importação nova
 Exportar ..> Eventos : <<include>> conclusão ou pendências
@@ -92,9 +129,14 @@ note bottom of RotaBrasil
   Bloqueios impedem importação integral. Não há importação parcial implícita.
   PDF: somente cabeçalho, sem validação estrutural/comercial.
   Pasta escolhida fica no computador do backend, sob raiz autorizada.
-  Notificações: SIMULADAS; recebimento não significa importação concluída.
+  Confirmação ao motorista é manual, independente do envio documental ao cliente.
+  Eventos internos permanecem simulados; recebimento não significa importação concluída.
+  Padrão SIMULADO. REAL exige configuração externa válida, OAuth2 e confirmação.
+  Repetição da mesma conferência recupera tentativa; desconhecido não repete automaticamente.
+  Aceite SMTP não comprova entrega ou leitura ao motorista.
   Sem login novo. Segurança existente preservada; desenvolvimento em loopback.
-  Outlook automático e notificações reais: integrações futuras.
+  ZIP baixado manualmente. Sem leitura de caixa ou sincronização de contatos.
+  Homologação externa da conta ainda pendente; nenhum envio externo nos testes.
   RotaBrasil não gera documentos fiscais, faturas ou boletos.
 end note
 @enduml

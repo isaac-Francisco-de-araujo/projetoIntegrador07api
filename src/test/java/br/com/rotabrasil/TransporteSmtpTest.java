@@ -11,6 +11,25 @@ import java.util.*;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 class TransporteSmtpTest {
+    @org.junit.jupiter.api.io.TempDir java.nio.file.Path tmp;
+    @Test void notificacaoUsaMesmoAdaptadorSemAnexosNemTrocaRemetente()throws Exception{
+        var s=sender();var t=new TransporteSmtp(s,"operacao@example.invalid");
+        assertThat(t.enviarNotificacao(new MensagemNotificacao("operacao@example.invalid","motorista@example.invalid","Recebimento sintético","Há pendências em conferência."))).isEqualTo(TransporteEmail.Resultado.ACEITO);
+        var captor=org.mockito.ArgumentCaptor.forClass(MimeMessage.class);verify(s).send(captor.capture());var m=captor.getValue();assertThat(m.getAllRecipients()).hasSize(1);assertThat(m.getContent()).isEqualTo("Há pendências em conferência.");assertThat(m.isMimeType("multipart/*")).isFalse();
+        assertThat(t.enviarNotificacao(new MensagemNotificacao("outra@example.invalid","motorista@example.invalid","Teste","Teste"))).isEqualTo(TransporteEmail.Resultado.RECUSADO);verify(s,times(1)).send(any(MimeMessage.class));
+    }
+    @Test void oauth2UsaTokenExternoAtualizadoSemFallbackBasic()throws Exception{
+        var arquivo=tmp.resolve("token.json");java.nio.file.Files.writeString(arquivo,"{\"access_token\":\"SINTETICO_UM\",\"expires_at\":\""+java.time.Instant.now().plusSeconds(3600)+"\"}");
+        configuracao().withPropertyValues("rotabrasil.email.smtp.ativado=true","rotabrasil.email.smtp.senha=","rotabrasil.email.smtp.autenticacao=XOAUTH2","rotabrasil.email.smtp.oauth2.token-arquivo="+arquivo).run(c->{assertThat(c).hasNotFailed();var s=c.getBean(JavaMailSenderImpl.class);assertThat(s.getPassword()).isEqualTo("SINTETICO_UM");assertThat(s.getJavaMailProperties().getProperty("mail.smtp.auth.mechanisms")).isEqualTo("XOAUTH2");assertThat(s.getJavaMailProperties().getProperty("mail.smtp.auth.plain.disable")).isEqualTo("true");});
+        java.nio.file.Files.writeString(arquivo,"{\"access_token\":\"SINTETICO_DOIS\",\"expires_at\":\"2000-01-01T00:00:00Z\"}");assertThatThrownBy(()->TokenSmtpExterno.ler(arquivo.toString())).hasMessage("Credencial OAuth2 externa ausente, inválida ou expirada");
+    }
+    @Test void recusaSmtpExplicitaEConhecidaETimeoutPermaneceDesconhecido()throws Exception{
+        var s=sender();var rejeicao=new org.eclipse.angus.mail.smtp.SMTPSendFailedException("DATA",550,"RESPOSTA_PRIVADA",null,null,null,new jakarta.mail.Address[]{new jakarta.mail.internet.InternetAddress("teste@example.invalid")});
+        doThrow(new MailSendException(Map.of(new Object(),rejeicao))).when(s).send(any(MimeMessage.class));var t=new TransporteSmtp(s,"operacao@example.invalid");
+        assertThat(t.enviarNotificacao(new MensagemNotificacao("operacao@example.invalid","motorista@example.invalid","Teste","Sintético"))).isEqualTo(TransporteEmail.Resultado.RECUSADO);
+        var posterior=new org.eclipse.angus.mail.smtp.SMTPSendFailedException("QUIT",550,"RESPOSTA_PRIVADA",null,null,null,null);doThrow(new MailSendException(Map.of(new Object(),posterior))).when(s).send(any(MimeMessage.class));assertThat(t.enviarNotificacao(new MensagemNotificacao("operacao@example.invalid","motorista@example.invalid","Teste","Sintético"))).isEqualTo(TransporteEmail.Resultado.DESCONHECIDO);
+        doThrow(new MailSendException("privado",new java.net.SocketTimeoutException("TOKEN_PRIVADO"))).when(s).send(any(MimeMessage.class));assertThat(t.enviarNotificacao(new MensagemNotificacao("operacao@example.invalid","motorista@example.invalid","Teste","Sintético"))).isEqualTo(TransporteEmail.Resultado.DESCONHECIDO);
+    }
     MensagemPreparada mensagem(){return new MensagemPreparada(1L,"teste@example.invalid",List.of(new MensagemPreparada.Arquivo("DOCUMENTO",1L,"sintetico.xml","a".repeat(64),"<sintetico/>".getBytes(java.nio.charset.StandardCharsets.UTF_8))));}
     JavaMailSender sender(){var s=mock(JavaMailSender.class);when(s.createMimeMessage()).thenReturn(new MimeMessage(Session.getInstance(new Properties())));return s;}
     @Test void compoeMensagemExplicitaSemUsarCliGmailOuRede()throws Exception{

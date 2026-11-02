@@ -16,6 +16,8 @@ import java.util.List;
 @lombok.RequiredArgsConstructor
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private final br.com.rotabrasil.service.DiagnosticoOperacaoService diagnosticos;
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    ResponseEntity<ErroResponse> acessoNegado(org.springframework.security.access.AccessDeniedException ex){return response(HttpStatus.FORBIDDEN,"Acesso negado para esta operação");}
     @ExceptionHandler(DiagnosticoPacoteException.class)
     ResponseEntity<ErroPacote> diagnosticoPacote(DiagnosticoPacoteException ex) {
         br.com.rotabrasil.dto.DiagnosticoOperacao d;

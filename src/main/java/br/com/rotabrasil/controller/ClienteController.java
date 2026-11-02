@@ -14,8 +14,9 @@ import java.util.List;
 public class ClienteController {
     private final CadastroConsultaService service;
     private final ExclusaoClienteService exclusao;
+    private final br.com.rotabrasil.service.EdicaoCompartilhada edicao;
     @GetMapping public List<ClienteResponse> listar() { return service.listarClientes(); }
-    @GetMapping("/{id}") public ClienteResponse buscar(@PathVariable @Positive Long id) { return service.buscarCliente(id); }
+    @GetMapping("/{id}") public org.springframework.http.ResponseEntity<ClienteResponse> buscar(@PathVariable @Positive Long id) { var c=service.buscarCliente(id);return org.springframework.http.ResponseEntity.ok().eTag(edicao.versao(c)).body(c); }
     @PostMapping @ResponseStatus(HttpStatus.CREATED)
     public ClienteResponse cadastrar(@Valid @RequestBody ClienteRequest cliente) { return service.cadastrarCliente(cliente); }
     @PutMapping("/{id}")

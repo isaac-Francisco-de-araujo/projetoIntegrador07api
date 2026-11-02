@@ -1,5 +1,6 @@
 import {api,element,podeOperar} from './painel-base.js';
 import { renderizarDiagnostico,apresentarErro,referenciaLocal } from './painel-diagnostico.js';
+import { montarConfirmacaoMotorista } from './painel-confirmacao-recebimento.js';
 const json=body=>({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),timeoutMs:120000});
 const consultas=new WeakMap();
 export function detalhesPlanoExportacao(e){
@@ -35,13 +36,15 @@ export function botaoExportar(pacoteId,alvo){
 export async function mostrarRecebimento(id,alvo){
   const token=Symbol();consultas.set(alvo,token);alvo.replaceChildren();if(!id)return;
   try{
-    const r=await api(`/api/recebimentos/${id}`);if(consultas.get(alvo)!==token)return;alvo.append(element('h3','Avisos da operação · somente simulação'));
-    alvo.append(element('p',`Remetente da operação: ${r.remetente||'não informado'} · Destinatário deste upload: ${r.destinatario||'não informado'}`));
-    for(const n of r.notificacoes){
-      const artigo=element('article');artigo.append(element('strong',`${n.evento} · ${n.situacao}`),element('p',n.mensagem));
+     const r=await api(`/api/recebimentos/${id}`);if(consultas.get(alvo)!==token)return;alvo.append(element('h3','Recebimento e histórico da operação'));
+     alvo.append(element('p',`Remetente inicial da operação: ${r.remetente||'não informado'} · Destinatário atual deste recebimento: ${r.destinatario||'não informado'}`));
+     montarConfirmacaoMotorista(r,alvo,()=>mostrarRecebimento(id,alvo));
+     const eventos=element('details');eventos.open=true;eventos.append(element('summary','Eventos internos · histórico simulado, sem envio real automático'));alvo.append(eventos);
+     for(const n of r.notificacoes.filter(n=>n.evento!=='CONFIRMACAO_MOTORISTA')){
+       const artigo=element('article');artigo.append(element('strong',`${n.evento} · ${n.situacao}`),element('p',`Snapshot do evento: ${n.remetente||'remetente não informado'} → ${n.destinatario||'destinatário não informado'} · ${n.modo}`),element('p',n.mensagem));
       if(n.situacao==='PENDENTE'&&podeOperar()){
         const button=element('button','Simular este aviso','button secondary');button.type='button';button.addEventListener('click',async()=>{button.disabled=true;try{await api(`/api/recebimentos/${id}/notificacoes/${n.id}/simular`,json({confirmado:true}));await mostrarRecebimento(id,alvo);}catch(error){artigo.append(element('p',error.message));}finally{button.disabled=false;}});artigo.append(button);
-      }alvo.append(artigo);
+       }eventos.append(artigo);
     }
     return r;
   }catch(error){if(consultas.get(alvo)===token)apresentarErro(alvo,error);}

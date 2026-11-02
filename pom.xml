@@ -61,7 +61,10 @@
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
-            <plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin>
+            <plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration><time>${maven.build.timestamp}</time></configuration>
+                <executions><execution><goals><goal>build-info</goal></goals></execution></executions>
+            </plugin>
         </plugins>
     </build>
 </project>

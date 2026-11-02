@@ -1,5 +1,9 @@
 # Etapa 6 — Contrato e integridade da API
 
+**Evolução V14:** [uso compartilhado](uso-compartilhado.md) acrescenta login UI,
+versões de usuários, ETag/If-Match para PUT de clientes/viagens e DELETE de viagem,
+fila, busca paginada e saúde. Os contratos abaixo são o registro histórico da Etapa 6.
+
 Os endpoints existentes recebem e retornam DTOs. Entidades JPA, coleções
 bidirecionais, proxies e caminhos físicos de arquivos não fazem parte do JSON.
 Os serviços materializam as respostas dentro de transações de leitura;

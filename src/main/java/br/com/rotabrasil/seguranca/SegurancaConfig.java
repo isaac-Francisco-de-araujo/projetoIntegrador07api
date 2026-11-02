@@ -11,18 +11,26 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
 
 @Configuration
 public class SegurancaConfig {
+    private record OperadorSessao(String usuario,String hash,String papel,boolean ativo) implements UserDetails {
+        public String getUsername(){return usuario;}public String getPassword(){return hash;}public boolean isEnabled(){return ativo;}
+        public java.util.Collection<? extends org.springframework.security.core.GrantedAuthority> getAuthorities(){return java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_"+papel));}
+        @Override public String toString(){return "OperadorSessao[credenciais omitidas]";}
+    }
     @Bean PasswordEncoder passwordEncoder(){return new BCryptPasswordEncoder(12);}
     @Bean UserDetailsService usuarios(JdbcTemplate jdbc){return login->{
         var encontrados=jdbc.query("SELECT usuario,senha_hash,papel,ativo FROM usuarios WHERE usuario=?",(rs,n)->
-                User.withUsername(rs.getString(1)).password(rs.getString(2)).roles(rs.getString(3)).disabled(!rs.getBoolean(4)).build(),login);
+                new OperadorSessao(rs.getString(1),rs.getString(2),rs.getString(3),rs.getBoolean(4)),login);
         return encontrados.stream().findFirst().orElseThrow(()->new UsernameNotFoundException("Credenciais inválidas"));
     };}
     @Bean @org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication(type=org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type.SERVLET)
     SecurityFilterChain acesso(HttpSecurity http,UserDetailsService usuarios,@Value("${rotabrasil.seguranca.ativa:false}") boolean ativa) throws Exception {
         if(!ativa)return http.authorizeHttpRequests(a->a.anyRequest().permitAll()).csrf(c->c.disable()).build();
+        var api=PathPatternRequestMatcher.withDefaults().matcher("/api/**");
         return http.addFilterBefore(new RevalidarSessaoFilter(usuarios),org.springframework.security.web.access.intercept.AuthorizationFilter.class).authorizeHttpRequests(a->a
                 .requestMatchers("/login","/error").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
@@ -31,12 +39,16 @@ public class SegurancaConfig {
                 .requestMatchers(HttpMethod.GET,"/**").authenticated()
                 .anyRequest().hasAnyRole("OPERADOR","ADMIN"))
                 .csrf(c->c.csrfTokenRepository(new HttpSessionCsrfTokenRepository()))
-                .formLogin(f->f.defaultSuccessUrl("/",true).permitAll())
+                .formLogin(f->f.loginPage("/login").successHandler((req,res,auth)->{
+                    req.getSession().setAttribute("rotabrasil.credencial",((UserDetails)auth.getPrincipal()).getPassword());
+                    res.sendRedirect(req.getContextPath()+"/");
+                }).permitAll())
                 .logout(l->l.logoutSuccessUrl("/login?logout"))
-                .exceptionHandling(e->e.authenticationEntryPoint((req,res,ex)->{
-                    if(req.getRequestURI().startsWith(req.getContextPath()+"/api/")){res.setStatus(401);res.setContentType("application/json;charset=UTF-8");res.getWriter().write("{\"mensagem\":\"Sessão encerrada; entre novamente\"}");}
-                    else new LoginUrlAuthenticationEntryPoint("/login").commence(req,res,ex);
-                }))
+                // Uma entry point global impede o formulário padrão do Spring de ser gerado.
+                // Selecionar por rota mantém a entrada existente e o contrato JSON da API.
+                .exceptionHandling(e->e.defaultAuthenticationEntryPointFor((req,res,ex)->{
+                    res.setStatus(401);res.setContentType("application/json;charset=UTF-8");res.getWriter().write("{\"mensagem\":\"Sessão encerrada; entre novamente\"}");
+                },api).defaultAuthenticationEntryPointFor(new LoginUrlAuthenticationEntryPoint("/login"),new NegatedRequestMatcher(api)))
                 .build();
     }
 }
