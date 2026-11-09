@@ -1,5 +1,10 @@
 # Envio manual auditável em SIMULAÇÃO
 
+**Interface atual (03/11/2026):** [uso diário simplificado](uso-diario-simplificado.md).
+Sem transporte real configurado, o fluxo cotidiano mostra **Envio não configurado**
+e mantém a ação indisponível. Históricos identificam testes sem envio. Os contratos
+backend e as evidências históricas V7 descritos abaixo foram preservados.
+
 **Evolução atual:** o [README](../README.md#envio-de-e-mail) descreve o adaptador SMTP
 documental real já implementado, com ativação/configuração externas. A
 [V9](configuracoes-exportacao-notificacoes.md) acrescenta remetente da operação e

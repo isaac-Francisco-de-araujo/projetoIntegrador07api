@@ -19,3 +19,8 @@
 /.idea/
 /.vscode/
 *.iml
+# Atalhos pessoais e metadados do sistema operacional
+*.lnk
+.DS_Store
+Thumbs.db
+Desktop.ini

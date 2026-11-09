@@ -1,0 +1,48 @@
+flowchart TD
+    URL[URL do RotaBrasil] --> PERFIL{Perfil}
+    PERFIL -->|operacao sem sessão| LOGIN[Login individual /login · Entrar]
+    PERFIL -->|operacao com sessão| REQUISITOS
+    LOGIN -->|autenticação e CSRF| REQUISITOS[Verificar contrato API e sessão]
+    PERFIL -->|desenvolvimento isolado em loopback| REQUISITOS
+    REQUISITOS -->|falha| BLOQUEIO[Acesso bloqueado · Entrar / Recarregar]
+    REQUISITOS -->|válidos| PAINEL[Painel · eventos disponíveis]
+    PAINEL --> TRABALHO[Trabalho]
+    PAINEL --> ACOMP[Acompanhamento]
+    PAINEL -->|ADMIN| ADMIN[Administração]
+    TRABALHO --> FILA[Fila · responsáveis]
+    FILA -.-> REF_FILA[Histórico e referências · UUID sob demanda]
+    TRABALHO --> INICIO[Visão geral · indicadores e atalhos]
+    TRABALHO --> ZIP[Importar ZIP]
+    TRABALHO --> VIAGENS[Viagens · lista paginada e Mais filtros]
+    VIAGENS --> DOCS[Selecionar viagem · documentos e anexos]
+    DOCS -->|Voltar · preserva consulta| VIAGENS
+    TRABALHO --> BUSCA[Busca integrada · Mais filtros · detalhes]
+    TRABALHO --> CLIENTES[Clientes]
+    CLIENTES --> CLIENTE[Detalhes · viagens · exclusão com conferência]
+    ZIP --> SELECAO[1. Selecionar ZIP]
+    SELECAO -->|Conferir arquivos · não importa| CONFERENCIA[2. Conferir XMLs e associar PDFs]
+    CONFERENCIA -->|erros| CORRIGIR[Arquivo · problema · orientação para corrigir e reconferir]
+    CORRIGIR -.-> TECNICO[Ver detalhes · diagnóstico técnico recolhido]
+    CORRIGIR --> SELECAO
+    CONFERENCIA -->|vínculos explícitos válidos| CONFIRMACAO[3. Confirmar importação]
+    CONFERENCIA -->|Voltar / Retomar · preserva escolhas| SELECAO
+    CONFIRMACAO -->|resposta confirmada| RESULTADO[Documentos registrados · Ver documentos]
+    CONFIRMACAO -->|resposta perdida| INCERTO[Resultado desconhecido · consultar histórico]
+    RESULTADO --> COPIA[Cópia externa · estado real]
+    COPIA -->|pendente| RETOMADA[Retomar somente exportação]
+    ZIP --> AVULSO[XML / PDF individual · fluxo existente]
+    ZIP --> IMPORTACOES[Ver importações · tela separada]
+    ZIP -.-> OPCIONAL[Confirmação ao motorista · opcional e independente]
+    ACOMP --> ENVIOS[Envios · histórico honesto · envio condicionado]
+    DOCS -->|seleção explícita| ENVIOS
+    ENVIOS --> HISTORICO_ENVIO[Histórico recolhido · data / destinatário / resultado]
+    HISTORICO_ENVIO --> REFERENCIAS_ENVIO[Ver detalhes · UUID / anexos / reenvio]
+    ACOMP --> PENDENCIAS[Pendências · diagnóstico e recuperação]
+    PENDENCIAS --> AJUDA[Como usar · detalhes e referências sob demanda]
+    INCERTO --> PENDENCIAS
+    ADMIN --> CONFIG[Configurações · conta / pasta / cópia / salvar]
+    CONFIG --> DETALHES[Requisitos e testes recolhidos]
+    ADMIN --> OPERADORES[Operadores · lista e filtro]
+    OPERADORES --> FORMULARIO[Diálogos · cadastro / permissões / redefinição]
+    ADMIN --> SAUDE[Saúde do sistema]
+    PAINEL -.-> LAZY[Telas secundárias carregam sob demanda · falha local]

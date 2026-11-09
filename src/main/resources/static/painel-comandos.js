@@ -1,4 +1,5 @@
 import { navegarPara } from './painel-navegacao.js';
+import { podeAdministrar } from './painel-base.js';
 const normalizar = text => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
 
 export function iniciarComandos({ alternarTema }) {
@@ -23,7 +24,9 @@ export function iniciarComandos({ alternarTema }) {
       { titulo:'Clientes', detalhe:'Consultar destinatários cadastrados', icone:'◎', executar:()=>navegar('clientes') },
       { titulo:'Central de envios', detalhe:'Preparar uma seleção e conferir o envio', icone:'✉', executar:()=>navegar('email','destinatario') },
       { titulo:'Histórico de processamento', detalhe:'Consultar diagnósticos e pendências', icone:'↻', executar:()=>navegar('processamentos') },
-      { titulo:'Configurações', detalhe:'E-mail da operação e pasta de exportação no backend', icone:'⚙', executar:()=>navegar('configuracoes') },
+      ...(podeAdministrar()?[{ titulo:'Configurações', detalhe:'Conta de envio e pasta dos documentos', icone:'⚙', executar:()=>navegar('configuracoes') },{titulo:'Operadores',detalhe:'Contas e permissões',icone:'◎',executar:()=>navegar('administracao')},{titulo:'Saúde do sistema',detalhe:'Disponibilidade',icone:'✓',executar:()=>navegar('saude')}]:[]),
+      {titulo:'Fila',detalhe:'Trabalho e responsáveis',icone:'→',executar:()=>navegar('fila')},
+      {titulo:'Ver importações',detalhe:'Pacotes já registrados',icone:'▤',executar:()=>navegar('pacotes-importados')},
       { titulo:document.documentElement.dataset.tema === 'escuro' ? 'Ativar tema claro' : 'Ativar tema escuro', detalhe:'Seu workspace, do seu jeito', icone:'◐', executar:()=>{ dialog.close(); alternarTema(); } }
     ];
   }

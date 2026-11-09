@@ -6,7 +6,8 @@ async function carregar(){
   const seq=++sequencia,params=new URLSearchParams({pagina,tamanho:20});for(const c of campos){const v=$('busca-'+c).value;if(v)params.set(c,v);}
   const alvo=$('busca-resultados');alvo.setAttribute('aria-busy','true');$('busca-resumo').textContent='Consultando…';
   try{const r=await api('/api/busca?'+params);if(seq!==sequencia)return;alvo.replaceChildren();
-    for(const item of r.itens){const row=element('article',null,'card');row.append(element('strong',`${r.entidade}${item.origem?' / '+item.origem:''} #${item.id} · ${item.nome}`),element('p',[item.clienteNome,item.cnpj,item.tipo,item.status,item.estado,item.arquivadoEm?'Arquivado':null].filter(Boolean).join(' · ')));
+    const tipos={VIAGEM:'Viagem',CLIENTE:'Cliente',ARQUIVO:'Documento',PACOTE:'Pacote'};
+    for(const item of r.itens){const row=element('article',null,'card');row.append(element('strong',`${tipos[r.entidade]} · ${item.nome}`),element('p',[item.clienteNome,item.cnpj,item.tipo,item.status,item.estado,item.arquivadoEm?'Arquivado':null].filter(Boolean).join(' · ')));
       const detalhes=element('button','Ver detalhes');detalhes.type='button';detalhes.addEventListener('click',async()=>{
         const dialog=$('busca-detalhe');$('busca-detalhe-conteudo').textContent='Carregando detalhes…';dialog.showModal();
         try{let d=item;if(r.entidade==='CLIENTE')d=await api(`/api/clientes/${item.id}`);if(r.entidade==='VIAGEM')d=await api(`/api/viagens/${item.id}`);if(r.entidade==='PACOTE')d=await api(`/api/pacotes/${item.id}/conferencia-exclusao`);
@@ -20,7 +21,6 @@ async function carregar(){
   }catch(e){if(seq===sequencia){alvo.replaceChildren();$('busca-resumo').textContent=`Falha de consulta: ${e.message} Revise os filtros ou tente novamente.`;$('busca-anterior').disabled=true;$('busca-proxima').disabled=true;}}finally{if(seq===sequencia)alvo.setAttribute('aria-busy','false');}
 }
 export function iniciarBusca(){
-  const link=element('a','Busca integrada');link.href='#busca';document.querySelector('.sidebar nav').append(link);
   for(const c of campos)$('busca-'+c).addEventListener(['busca','numero','cliente','pacote'].includes(c)?'input':'change',()=>{pagina=0;++sequencia;clearTimeout(timer);timer=setTimeout(carregar,300);});
   $('busca-atualizar').addEventListener('click',carregar);$('busca-anterior').addEventListener('click',()=>{pagina--;carregar();});$('busca-proxima').addEventListener('click',()=>{pagina++;carregar();});$('busca-detalhe-fechar').addEventListener('click',()=>$('busca-detalhe').close());return carregar();
 }

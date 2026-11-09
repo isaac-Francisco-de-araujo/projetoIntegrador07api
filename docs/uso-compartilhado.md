@@ -1,5 +1,9 @@
 # Uso diário compartilhado
 
+**Revisão da experiência (03/11/2026):** consulte
+[uso diário simplificado](uso-diario-simplificado.md) para a investigação ZIP,
+inicialização independente, login sem espera artificial, menu e resultados atuais.
+
 ## 1. Login e operadores
 
 Reutilizados usuários V8, BCrypt, sessão, CSRF, revalidação de papel e auditoria HTTP.

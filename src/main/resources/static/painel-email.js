@@ -13,7 +13,7 @@ export function mostrarConsultaTentativa(tentativa,diagnostico){
   card.append(element('p','Consulta somente de leitura. Nenhuma confirmação ou reenvio foi executado.'));
 }
 $('form-email').addEventListener('submit',async event=>{
-  event.preventDefault();if(!podeOperar()||state.previaOcupada||state.carregando||!state.viagem||!(state.selecionados.size+state.anexosSelecionados.size))return;
+  event.preventDefault();if(!state.envioReal||!podeOperar()||state.previaOcupada||state.carregando||!state.viagem||!(state.selecionados.size+state.anexosSelecionados.size))return;
   const version=++previa,trip=state.viagem,ids=[...state.selecionados];
   if(tentativasEmail.length&&!anteriorEmail){avisar('Esta viagem já tem tentativa. Consulte o histórico e escolha Preparar reenvio confirmado.',true);return;}
   state.previaOcupada=true;atualizarSelecao();$('gerar-previa').textContent='Gerando prévia…';$('resultado-previa').hidden=true;
@@ -22,8 +22,8 @@ $('form-email').addEventListener('submit',async event=>{
     if(version!==previa||trip!==state.viagem)return;conferenciaEmail=result;
     const real=result.modo==='REAL',target=$('resultado-previa'),label=element('label'),check=element('input');check.type='checkbox';check.id='conferi-envio';
     label.append(check,element('span',`${result.anteriorId?'Conferi e confirmo deliberadamente este REENVIO':'Conferi viagem, destinatário e anexos'} · ${real?'ENVIO REAL':'SIMULAÇÃO'}.`));
-    const button=element('button',real?(result.anteriorId?'Confirmar reenvio real':'Confirmar envio real'):(result.anteriorId?'Simular reenvio confirmado':'Simular envio'),'button primary');button.type='button';button.id='simular-envio';button.disabled=true;
-    check.addEventListener('change',()=>{button.disabled=!check.checked||tentativaOcupada;});
+    const button=element('button',real?(result.anteriorId?'Confirmar reenvio':'Confirmar envio'):'Envio não configurado','button primary');button.type='button';button.id='simular-envio';button.disabled=true;
+    check.addEventListener('change',()=>{button.disabled=!real||!check.checked||tentativaOcupada;});
     button.addEventListener('click',()=>{if(check.checked&&conferenciaEmail?.id===result.id)executarConfirmacao(trip,result.id);});
     target.replaceChildren(element('strong',`${real?'ENVIO REAL':'SIMULAÇÃO'} · arquivos conferidos no servidor`),element('p','Nenhum e-mail enviado nesta prévia.'),element('p',`CT-e ${result.snapshot.numero} · Viagem #${result.snapshot.viagemId}`),element('p',`Destinatário: ${result.snapshot.destinatario}`),listaSnapshot(result.snapshot),element('p','Fatura compartilhada será incluída uma vez nesta tentativa. Não haverá tentativas automáticas para outras viagens ou destinatários.'),label,button);target.hidden=false;
   }catch(error){if(version===previa)avisar(error.message,true);}finally{state.previaOcupada=false;$('gerar-previa').textContent='Gerar prévia →';atualizarSelecao();}
@@ -31,9 +31,16 @@ $('form-email').addEventListener('submit',async event=>{
 export function renderizarTentativas(items){
   tentativasEmail=items;const target=$('tentativas');target.replaceChildren();if(!items.length){target.textContent='Nenhuma tentativa manual registrada.';return;}
   for(const item of items){
-    const section=element('section',null,`diag-card diag-${item.situacao==='FALHA'?'erro':item.situacao==='DESCONHECIDO'?'atencao':'sucesso'}`);section.append(element('strong',`${item.situacao==='FALHA'?'⛔ Falha':item.situacao==='DESCONHECIDO'?'⚠ Resultado incerto':'✓ Resultado registrado'} · ${item.modo==='SIMULADO'?'SIMULAÇÃO':'REAL'} · ${item.situacao}`),element('p',`Tentativa ${item.id} · ${new Date(item.criadaEm).toLocaleString('pt-BR')}`),element('p',`CT-e ${item.snapshot.numero} · ${item.snapshot.destinatario}`),listaSnapshot(item.snapshot),element('p',item.motivo));
-    if(item.anteriorId)section.append(element('p',`Reenvio da tentativa ${item.anteriorId}`));
-    if(podeOperar()&&item.id===items.at(-1).id){const button=element('button','Preparar reenvio confirmado','button secondary');button.type='button';button.addEventListener('click',()=>{if(tentativaOcupada)return;anteriorEmail=item.id;invalidarPrevia();$('referencia-reenvio').textContent=`REENVIO da tentativa ${item.id}. ${item.situacao==='DESCONHECIDO'?'Resultado desconhecido: revise antes de prosseguir. ':''}Escolha destinatário e anexos e gere nova prévia para confirmar.`;$('destinatario').focus();});section.append(button);}target.append(section);
+    const section=element('section',null,`diag-card diag-${item.situacao==='FALHA'?'erro':item.situacao==='DESCONHECIDO'?'atencao':item.situacao==='ACEITO_SMTP'?'sucesso':'atencao'}`);
+    section.append(element('strong'),element('p',`${new Date(item.criadaEm).toLocaleString('pt-BR')} · CT-e ${item.snapshot.numero} · ${item.snapshot.destinatario}`));
+    if(item.situacao==='FALHA'||item.situacao==='DESCONHECIDO')section.append(element('p',item.motivo),element('p',item.situacao==='DESCONHECIDO'?'Confira o resultado antes de preparar um reenvio. Não há repetição automática.':'Revise a causa e confira novamente antes de preparar um reenvio.'));
+    const detalhes=element('details');detalhes.append(element('summary','Ver detalhes'),element('p',`Tentativa ${item.id} · ${item.modo} · ${item.situacao}`),listaSnapshot(item.snapshot));
+    if(item.situacao!=='FALHA'&&item.situacao!=='DESCONHECIDO')detalhes.append(element('p',item.motivo));
+    if(item.anteriorId)detalhes.append(element('p',`Reenvio da tentativa ${item.anteriorId}`));
+    section.append(detalhes);
+    const titulo=section.querySelector('strong');titulo.textContent=item.situacao==='FALHA'?`⛔ Falha${item.modo==='SIMULADO'?' no teste sem envio':''}`:item.situacao==='DESCONHECIDO'?`⚠ Resultado desconhecido${item.modo==='SIMULADO'?' do teste sem envio':''}`:item.modo==='SIMULADO'?'Teste sem envio':item.situacao==='ACEITO_SMTP'?'Aceito pelo provedor — entrega não comprovada':'⚠ Em processamento';
+    if(item.modo==='SIMULADO'&&!['FALHA','DESCONHECIDO'].includes(item.situacao))section.className='diag-card';
+    if(state.envioReal&&podeOperar()&&item.id===items.at(-1).id){const button=element('button','Preparar reenvio confirmado','button secondary');button.type='button';button.addEventListener('click',()=>{if(tentativaOcupada)return;anteriorEmail=item.id;invalidarPrevia();$('referencia-reenvio').textContent=`Reenvio deliberado. ${item.situacao==='DESCONHECIDO'?'Resultado anterior desconhecido: revise antes de prosseguir. ':''}Escolha destinatário e anexos e gere nova prévia.`;$('destinatario').focus();});section.append(button);}target.append(section);
   }
 }
 function pendencias(){try{return JSON.parse(sessionStorage.getItem('rotabrasil-confirmacoes')||'{}');}catch{return {};}}

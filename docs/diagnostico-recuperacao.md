@@ -1,5 +1,10 @@
 # Etapa de Diagnóstico e Recuperação — V10
 
+**Interface atual (03/11/2026):** [uso diário simplificado](uso-diario-simplificado.md).
+O componente existente agora recolhe explicações/referências técnicas; ações de
+recuperação permanecem. Históricos sem transporte são identificados como testes sem
+envio, sem alterar sua situação persistida ou ocultar falhas/resultados desconhecidos.
+
 **Evolução V11:** a [confirmação ao motorista](confirmacao-motorista.md) reutiliza
 o diagnóstico `NOTIFICACAO` e a Central. Falha conhecida fica em vermelho;
 DESCONHECIDO em âmbar; SIMULADO/ACEITO_SMTP em verde com identificação explícita

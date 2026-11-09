@@ -4,17 +4,15 @@ export function iniciarAbertura() {
   const screen = $('abertura');
   const targets = [...document.querySelectorAll('body > main, body > aside, body > .skip-link')];
   const previousFocus = document.activeElement;
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  const started = performance.now();
-  let skip = false, closed = false, failed = false, releaseDelay;
-  const minimum = 5000;
+  let closed = false, failed = false;
 
   screen.hidden = false;
+  $('abertura-titulo').textContent='RotaBrasil';
   document.body.classList.add('is-loading');
   for (const target of targets) target.inert = true;
 
   function etapa(value, text) {
-    $('abertura-progresso').value = value;
+    $('abertura-progresso').removeAttribute('value');
     $('abertura-status').textContent = text;
     $('abertura-etapa').textContent = `${String(Math.min(value + 1, 4)).padStart(2, '0')} / 04`;
     screen.querySelectorAll('[data-etapa]').forEach(node => {
@@ -28,9 +26,6 @@ export function iniciarAbertura() {
     closed = true;
     const focusInScreen = screen.contains(document.activeElement);
     screen.classList.add('is-leaving');
-    if (!reduced.matches && !screen.classList.contains('motion-paused')) {
-      await new Promise(resolve => setTimeout(resolve, 480));
-    }
     screen.hidden = true;
     for (const target of targets) target.inert = false;
     document.body.classList.remove('is-loading');
@@ -44,8 +39,6 @@ export function iniciarAbertura() {
   }
 
   $('abertura-pular').addEventListener('click', () => {
-    skip = true;
-    releaseDelay?.();
     $('abertura-pular').textContent = 'Aguardando os dados…';
     $('abertura-pular').disabled = true;
   });
@@ -60,12 +53,7 @@ export function iniciarAbertura() {
   return {
     etapa,
     async concluir() {
-      etapa(4, 'Tudo conectado. Seu workspace está pronto.');
-      const remaining = minimum - (performance.now() - started);
-      if (!skip && remaining > 0) await new Promise(resolve => {
-        const timer = setTimeout(resolve, remaining);
-        releaseDelay = () => { clearTimeout(timer); resolve(); };
-      });
+      etapa(4, 'Sessão e versão verificadas.');
       await fechar();
     },
     falhar(error) {
@@ -74,6 +62,7 @@ export function iniciarAbertura() {
       $('abertura-status').textContent = 'O workspace precisa da sua atenção.';
       $('abertura-erro-texto').textContent = error.message || 'Não foi possível concluir o carregamento. Confira sua conexão e tente novamente.';
       $('abertura-erro').hidden = false;
+      if(error.status===401){const entrar=document.createElement('a');entrar.href='/login';entrar.textContent='Entrar';entrar.className='button primary';$('abertura-erro').prepend(entrar);}
       $('abertura-pular').hidden = true;
       $('abertura-movimento').hidden = true;
     }

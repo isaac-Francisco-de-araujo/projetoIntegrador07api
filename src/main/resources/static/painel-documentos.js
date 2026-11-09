@@ -8,7 +8,7 @@ let consultas;
 import { invalidarPrevia, renderizarTentativas, atualizarRecuperacao, limparEstadoEmail } from './painel-email.js';
 
 export function atualizarSelecao() {
-  $('gerar-previa').disabled = !podeOperar() || state.previaOcupada || state.carregando || !state.viagem || !(state.selecionados.size + state.anexosSelecionados.size);
+  $('gerar-previa').disabled = !state.envioReal || !podeOperar() || state.previaOcupada || state.carregando || !state.viagem || !(state.selecionados.size + state.anexosSelecionados.size);
   $('selecao-info').textContent = (state.selecionados.size + state.anexosSelecionados.size) ? `${state.selecionados.size + state.anexosSelecionados.size} documento(s) selecionado(s) para conferência.` : 'Escolha uma viagem e selecione documentos.';
 }
 
@@ -30,7 +30,7 @@ function documentos() {
       choice.append(checkbox);
     }
     const name = element('td', doc.nomeArquivo, 'filename');
-    name.append(element('small', ` · #${doc.id}`));
+    const referencia=element('details');referencia.append(element('summary','Referência'),element('small',`Documento #${doc.id}`));name.append(referencia);
     const action = element('td'); const button = element('button', arquivados ? 'Restaurar' : `Excluir ${doc.tipo}`, arquivados ? 'row-action' : 'delete-action');
     button.type = 'button'; button.setAttribute('aria-label', `${arquivados ? 'Restaurar' : 'Excluir'} ${doc.tipo} ${doc.nomeArquivo}`);
     if (arquivados) button.addEventListener('click', () => restaurarDocumento(doc, button));
@@ -55,6 +55,7 @@ async function carregarDocumentos(id) {
   $('tentativas').textContent = id ? 'Carregando tentativas…' : 'Escolha uma viagem para consultar.';
   atualizarRecuperacao(id);
   state.viagem = id; state.selecionados.clear(); state.anexosSelecionados.clear(); state.anexos = []; renderizarAnexos(); state.daViagem = []; invalidarPrevia();
+  $('documentos-conteudo').hidden=!id;
   const viagem = state.viagens.find(item => String(item.id) === id);
   const cliente = viagem && state.clientes.find(item => item.id === viagem.clienteId);
   const context = viagem ? `Viagem ${viagem.numero} · ${cliente?.nome || `Cliente #${viagem.clienteId}`} · ${data(viagem.data)}` : 'Escolha uma viagem para conferir os documentos e anexos.';
@@ -63,14 +64,14 @@ async function carregarDocumentos(id) {
   if (!id) { vazio($('lista-documentos'), 5, 'Escolha uma viagem para consultar os documentos.'); $('historico').textContent = 'Escolha uma viagem para consultar.'; return; }
   vazio($('lista-documentos'), 5, 'Carregando documentos…'); $('historico').textContent = 'Carregando histórico…';
   try {
-    const [docs, history, anexos, attempts] = await Promise.all([api(`/api/viagens/${encodeURIComponent(id)}/documentos${$('mostrar-arquivados').checked ? '/arquivados' : ''}`), api(`/api/viagens/${encodeURIComponent(id)}/envios`), api(`/api/viagens/${encodeURIComponent(id)}/anexos?arquivados=${$('mostrar-arquivados').checked}`), api(`/api/viagens/${encodeURIComponent(id)}/tentativas-email`)]);
+    const [docs, anexos] = await Promise.all([api(`/api/viagens/${encodeURIComponent(id)}/documentos${$('mostrar-arquivados').checked ? '/arquivados' : ''}`), api(`/api/viagens/${encodeURIComponent(id)}/anexos?arquivados=${$('mostrar-arquivados').checked}`)]);
     if (version !== consulta) return;
-    state.daViagem = docs; state.anexos = anexos; documentos(); renderizarAnexos(); historico(history);
-    renderizarTentativas(attempts);
+    state.daViagem = docs; state.anexos = anexos; documentos(); renderizarAnexos();
+    carregarHistoricos(id,version);
   } catch (error) {
     if (version !== consulta) return;
     vazio($('lista-documentos'), 5, 'Não foi possível carregar os documentos. Use Atualizar dados para tentar novamente.');
-    $('historico').textContent = 'Histórico indisponível.'; avisar(error.message, true);
+    $('historico').textContent = 'Histórico indisponível.';
   } finally {
     if (version === consulta) { state.carregando = false; atualizarSelecao(); }
   }
@@ -97,7 +98,7 @@ export async function atualizar(viagemId = null) {
     const chosen = viagemId === null ? state.viagem : String(viagemId);
     if(chosen&&!trips.some(t=>String(t.id)===chosen))try{trips.push(await api(`/api/viagens/${encodeURIComponent(chosen)}`));}catch{}
     const select = $('viagem-selecionada'); select.replaceChildren(new Option('Escolha uma viagem', ''));
-    for (const trip of trips) select.add(new Option(`CT-e ${trip.numero} · #${trip.id}`, String(trip.id)));
+    for (const trip of trips) select.add(new Option(`CT-e ${trip.numero} · ${trip.clienteNome||'Cliente não informado'}`, String(trip.id)));
     select.value = trips.some(trip => String(trip.id) === chosen) ? chosen : '';
     await carregarDocumentos(select.value);
   } catch(error) {
@@ -154,6 +155,14 @@ async function restaurarDocumento(doc, button) {
 }
 
 $('mostrar-arquivados').addEventListener('change', () => carregarDocumentos(state.viagem));
+function carregarHistoricos(id,version=consulta){
+  // Históricos não bloqueiam a consulta documental e falham independentemente.
+  if(!id)return;
+  api(`/api/viagens/${encodeURIComponent(id)}/tentativas-email`).then(items=>{if(version===consulta)renderizarTentativas(items);}).catch(()=>{if(version===consulta)$('tentativas').textContent='⛔ Histórico indisponível. Use Atualizar dados para tentar novamente.';});
+  if($('historico').closest('details').open)api(`/api/viagens/${encodeURIComponent(id)}/envios`).then(items=>{if(version===consulta)historico(items);}).catch(()=>{if(version===consulta)$('historico').textContent='⛔ Histórico indisponível. Use Atualizar dados para tentar novamente.';});
+}
+$('historico').closest('details').addEventListener('toggle',()=>{if($('historico').closest('details').open)carregarHistoricos(state.viagem);});
+$('voltar-lista-viagens').addEventListener('click',()=>{$('viagem-selecionada').value='';carregarDocumentos('');navegarPara('viagens',{foco:'buscar-viagem'});});
 $('viagem-selecionada').addEventListener('change', event => carregarDocumentos(event.target.value));
 $('destinatario').addEventListener('input', invalidarPrevia);
 $('atualizar').addEventListener('click', () => { $('aviso').hidden = true; atualizar().catch(error => avisar(error.message, true)); });

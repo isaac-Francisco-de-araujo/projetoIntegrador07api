@@ -16,7 +16,7 @@ export function iniciarImportacao({ atualizar }) {
     $('remover-arquivo-selecao').disabled=busy||!$('arquivo').files.length;
   }
   function resultado(text, error = false) {
-    const target = $('resultado-importacao'); target.hidden = false; target.textContent = text; target.classList.toggle('error',error); avisar(text,error);
+    const target = $('resultado-importacao'); target.hidden = false; target.textContent = `${error?'⛔':'✓'} ${text}`; target.classList.toggle('error',error);
   }
   function viagens() {
     const chosen = $('pdf-viagem-base').value;
@@ -40,6 +40,7 @@ export function iniciarImportacao({ atualizar }) {
     const file = $('arquivo').files[0];
     $('arquivo-info').textContent = file ? `${file.name} · ${tamanhoArquivo(file.size)}` : 'Nenhum arquivo selecionado';
     $('opcoes-pdf-avulso').hidden = !isPdf();
+    $('pdf-avulso-orientacao').textContent = state.viagens.length ? 'Escolha a viagem e seu CT-e original. Depois, confira o PDF no fluxo ZIP e confirme a importação.' : 'Nenhuma viagem disponível. Importe primeiro o XML de CT-e da viagem ou um ZIP com XML e PDF; depois adicione o PDF a essa viagem.';
     for (const id of ['pdf-viagem-base','pdf-xml-base']) $(id).required = Boolean(isPdf());
     $('resultado-importacao').hidden = true; controles();
   });
@@ -70,7 +71,7 @@ export function iniciarImportacao({ atualizar }) {
       if (!pdf) {
         const form = new FormData(); form.append('arquivo',file);
         const response = await api('/api/processamento/xml',{method:'POST',body:form});
-        resultado(`${response.mensagem} · Documento #${response.documentoId} · Viagem #${response.viagemId}.`);
+        resultado(response.mensagem);
         try { await atualizar(response.viagemId); } catch { resultado('A importação foi concluída, mas a atualização falhou. Use Atualizar dados para conferir.',true); }
       } else {
         const doc = xmls.find(item => String(item.id) === $('pdf-xml-base').value);

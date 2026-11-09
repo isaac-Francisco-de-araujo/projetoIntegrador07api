@@ -59,6 +59,43 @@ consulte este README e os contratos de uso compartilhado e da Etapa E-mail.
 
 ## Atualizações da versão atual
 
+### Revisão integrada da interface — 09/11/2026
+
+Revisadas as 12 abas e preservada a simplificação local existente. Corrigida a
+navegação por teclado ao voltar à seleção ZIP e a permanência de diagnóstico antigo
+após uma ação bem-sucedida em Configurações. O histórico de envios mantém data,
+destinatário e resultado à vista, com referências/anexos em **Ver detalhes**;
+falha e resultado desconhecido conservam orientação explícita.
+
+Erros do ZIP mostram arquivo, problema e próxima ação, com diagnóstico técnico
+recolhido. Na fila, Assumir tem destaque e UUIDs ficam em Histórico e referências.
+Veja o [complemento e suas capturas finais](docs/uso-diario-simplificado.md#complemento-erros-do-zip-e-títulos-da-fila--09112026).
+
+Validação nova: **387 testes JUnit (386 aprovados, 1 ignorado)** e cinco roteiros
+de navegador concluídos, com capturas das 12 abas, permissões/concorrência e zoom
+real 100–200%. [Resultados, capturas e limitações](docs/uso-diario-simplificado.md#revalidação-integrada--09112026).
+
+### Todas as abas simplificadas — 07/11/2026
+
+As 12 telas existentes receberam título e resumo curto. Filtros adicionais, referências,
+históricos e ferramentas administrativas ficam sob demanda. Operadores usa formulários
+em diálogos; Clientes concentra exclusão nos detalhes; Viagens não exibe tabelas
+documentais vazias. ZIP e Configurações preservam a simplificação local anterior.
+Veja o [mapa das ferramentas, correções e validação atual](docs/uso-diario-simplificado.md#revisão-de-todas-as-abas--07112026).
+
+### Uso diário simplificado — 03/11/2026
+
+Importação ZIP em **Selecionar → Conferir → Importar**, com orientação para vínculos
+pendentes, prévia de PDFs e importações anteriores em tela separada. Sessão e contrato
+da API continuam obrigatórios; falhas de módulos secundários são isoladas e a abertura
+não tem espera mínima artificial. Login operacional, configurações resumidas, menu por
+grupos e histórico identificado como **Teste sem envio** preservam os serviços existentes.
+O envio cotidiano fica indisponível quando não há transporte real configurado.
+
+Veja [investigação, regras, validação e capturas](docs/uso-diario-simplificado.md) e
+o [diagrama da navegação atual](docs/diagramas/navegacao-uso-diario.mmd).
+Esquema permanece **V14**; nenhuma migração operacional ou ativação SMTP foi realizada.
+
 ### Uso diário compartilhado — evolução atual
 
 Login individual e gestão de operadores voltam a integrar o frontend existente.
@@ -339,6 +376,18 @@ pom.xml              # Build e dependências
 AGENTS.md            # Instruções de trabalho no projeto
 ```
 
+### Manter o checkout enxuto
+
+Use `rotabrasil.build.directory` apontando para uma pasta temporária externa nos
+comandos Maven, conforme [Testes e verificações](#testes-e-verificações). `target/`
+contém saídas regeneráveis, não código-fonte; relatórios antigos que precisem ser
+preservados devem ficar fora do checkout. Atalhos pessoais e metadados do sistema
+operacional também ficam fora do versionamento.
+
+Na limpeza de 09/11/2026, o `target/` antigo e o atalho pessoal do Chrome foram
+retirados do checkout e preservados em diretório temporário externo. Os contratos,
+documentos históricos, scripts de teste e auxiliares Python continuam no projeto.
+
 ### Principais relações de dados
 
 - **Cliente → Viagens → Documentos:** cliente destinatário, viagem identificada por nCT e seus documentos.
@@ -448,8 +497,8 @@ Recursos de interface:
 
 - Tema escuro inicial, tema claro opcional e preferência salva.
 - Sidebar fixa/recolhível no desktop e drawer com controle de foco no celular.
-- Abertura animada com mínimo de **cinco segundos**, aguardando os dados necessários.
-- Botões para pausar animações ou pular somente o tempo de apresentação.
+- Abertura acompanha somente a verificação essencial de versão e sessão, sem espera mínima.
+- Módulos secundários carregam sob demanda e apresentam recuperação local.
 - Respeito a `prefers-reduced-motion`, navegação por teclado e foco visível.
 - Central de atalhos com **Ctrl+K / Cmd+K**.
 - Drag-and-drop, nome/tamanho do upload e feedback da operação.

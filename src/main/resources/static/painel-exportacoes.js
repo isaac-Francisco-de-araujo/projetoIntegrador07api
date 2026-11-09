@@ -12,7 +12,7 @@ async function renderizar(exportacoes,alvo,pacoteId,token){
   alvo.replaceChildren();
   for(const e of exportacoes.slice(0,10)){
     const d=await api(`/api/diagnosticos/EXPORTACAO/${e.id}`);if(consultas.get(alvo)!==token)return;
-    const destino=element('div');alvo.append(destino);const artigo=renderizarDiagnostico(destino,d);artigo.append(element('p',e.mensagem),detalhesPlanoExportacao(e));
+    const destino=element('div');alvo.append(destino);const artigo=renderizarDiagnostico(destino,d);artigo.querySelector('details').append(element('p',e.mensagem),detalhesPlanoExportacao(e));
   }
   if(exportacoes.length>10)alvo.append(element('p','Mostrando as dez exportações mais recentes deste pacote. Consulte a Central de Pendências para navegação paginada.'));
   if(!exportacoes.length)alvo.append(element('p','Importação concluída; nenhuma exportação registrada. A cópia automática pode estar desativada. Para copiar este pacote, use Exportar arquivos.'));
@@ -34,17 +34,16 @@ export function botaoExportar(pacoteId,alvo){
   });return button;
 }
 export async function mostrarRecebimento(id,alvo){
+  if(alvo.id==='avisos-recebimento')document.getElementById('recebimento-opcional').hidden=!id;
   const token=Symbol();consultas.set(alvo,token);alvo.replaceChildren();if(!id)return;
   try{
      const r=await api(`/api/recebimentos/${id}`);if(consultas.get(alvo)!==token)return;alvo.append(element('h3','Recebimento e histórico da operação'));
      alvo.append(element('p',`Remetente inicial da operação: ${r.remetente||'não informado'} · Destinatário atual deste recebimento: ${r.destinatario||'não informado'}`));
      montarConfirmacaoMotorista(r,alvo,()=>mostrarRecebimento(id,alvo));
-     const eventos=element('details');eventos.open=true;eventos.append(element('summary','Eventos internos · histórico simulado, sem envio real automático'));alvo.append(eventos);
+     const eventos=element('details');eventos.append(element('summary','Eventos internos — testes sem envio'));alvo.append(eventos);
      for(const n of r.notificacoes.filter(n=>n.evento!=='CONFIRMACAO_MOTORISTA')){
        const artigo=element('article');artigo.append(element('strong',`${n.evento} · ${n.situacao}`),element('p',`Snapshot do evento: ${n.remetente||'remetente não informado'} → ${n.destinatario||'destinatário não informado'} · ${n.modo}`),element('p',n.mensagem));
-      if(n.situacao==='PENDENTE'&&podeOperar()){
-        const button=element('button','Simular este aviso','button secondary');button.type='button';button.addEventListener('click',async()=>{button.disabled=true;try{await api(`/api/recebimentos/${id}/notificacoes/${n.id}/simular`,json({confirmado:true}));await mostrarRecebimento(id,alvo);}catch(error){artigo.append(element('p',error.message));}finally{button.disabled=false;}});artigo.append(button);
-       }eventos.append(artigo);
+      eventos.append(artigo);
     }
     return r;
   }catch(error){if(consultas.get(alvo)===token)apresentarErro(alvo,error);}

@@ -22,6 +22,28 @@ entrega. Não há integração com contatos ou caixa de entrada do Outlook nesta
 
 ## Uso no painel
 
+**Interface atual (03/11/2026):** [uso diário simplificado](uso-diario-simplificado.md).
+A entrada tem três passos; inspeção continua separada da confirmação transacional.
+`/#pacotes-importados` agora abre uma tela independente. A confirmação ao motorista
+é opcional e não bloqueia importação sem e-mail. Os capítulos anteriores abaixo
+preservam seus contratos e evidências históricas.
+
+### Verificação local de 02/11/2026
+
+A conferência não grava os documentos: cada PDF exige finalidade e viagens
+selecionadas pelo operador, seguidas de **Confirmar importação**. A tela agora
+exibe o número de PDFs ainda sem associação e um atalho para a primeira escolha
+pendente. As associações e a confirmação aparecem antes do diagnóstico detalhado.
+O PDF avulso informa quando é necessário importar primeiro o XML da viagem.
+
+Verificação com o JAR atualizado, H2 e documentos sintéticos em diretórios externos:
+`testar-exclusoes-paginas.cjs` (10 verificações), `testar-previa-pdf.cjs` (11) e
+`testar-configuracoes.cjs` (7), sem erros JavaScript. Inclui XML individual
+idempotente, ZIP, PDF avulso, visualização/revisão, downloads com SHA-256,
+arquivamento/restauração, exportação, recuperação da pasta e persistência após
+reinício. O teste de gerenciamento usa seletores específicos de exclusão e
+restauração, distinguindo-os das ações de exportação existentes na mesma linha.
+
 Os PDFs agora têm [prévia no painel e revisão visual em cópia](previa-e-revisao-pdf.md),
 com páginas, zoom e geração de ZIP revisado para nova conferência. Os vínculos
 continuam manuais e o XML não é alterado pelas revisões do PDF.

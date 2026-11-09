@@ -54,13 +54,11 @@ export function criarConsultas({ abrirViagem, excluirCliente, excluirViagem }) {
     const rows = r.itens.map(cliente => {
       const row = element('tr'); const info = element('td'); const identity = element('div', null, 'customer-identity');
       const avatar = element('span', (cliente.nome || '?').slice(0,1).toUpperCase(), 'client-avatar');
-      const copy = element('div'); copy.append(element('strong', cliente.nome), element('small', `CNPJ ${cnpj(cliente.cnpj)}`)); identity.append(avatar, copy); info.append(identity);
+      const copy = element('div'); copy.append(element('strong', cliente.nome), element('small', `CNPJ ${cnpj(cliente.cnpj)}`));
+      if(cliente.email||cliente.telefone)copy.append(element('small',[cliente.email,cliente.telefone].filter(Boolean).join(' · ')));
+      identity.append(avatar, copy); info.append(identity);
       const actions = element('td'); actions.className = 'row-actions';
       actions.append(acao('Detalhes', () => detalhes('cliente', cliente.id)), acao('Ver viagens →', () => filtrarCliente(cliente.id)));
-      if (podeAdministrar()) {
-        const excluir = acao('Excluir', () => excluirCliente(cliente, excluir), 'delete-action');
-        excluir.dataset.excluirCliente = String(cliente.id); excluir.setAttribute('aria-label', `Excluir cliente ${cliente.nome}`); actions.append(excluir);
-      }
       row.append(info, actions); return row;
     });
     if (rows.length) $('lista-clientes').replaceChildren(...rows);
@@ -96,11 +94,14 @@ export function criarConsultas({ abrirViagem, excluirCliente, excluirViagem }) {
         campo(list,'Identificador',`#${item.id}`); detailAction = () => abrirViagem(String(item.id)); $('acao-detalhes').textContent = 'Abrir documentos da viagem →';
       }
       $('detalhes-conteudo').replaceChildren(list); $('acao-detalhes').hidden = false;
+      if(tipo==='cliente'&&podeAdministrar()){
+        const excluir=acao('Excluir cliente',()=>{const trigger=origin;origin=null;dialog.close();excluirCliente(item,trigger);},'button danger');excluir.dataset.excluirCliente=String(item.id);$('detalhes-conteudo').append(excluir);
+      }
     } catch (error) { if (version === detailVersion && dialog.open) { $('detalhes-titulo').textContent = 'Dados indisponíveis'; $('detalhes-conteudo').textContent = error.message; } }
     finally { if (version === detailVersion) $('detalhes-conteudo').setAttribute('aria-busy','false'); }
   }
   $('fechar-detalhes').addEventListener('click', () => dialog.close());
-  dialog.addEventListener('close', () => { detailVersion++; detailRequest?.abort(); if (origin?.isConnected) origin.focus({preventScroll:true}); });
+  dialog.addEventListener('close', () => { detailVersion++; detailRequest?.abort(); if(!dialog.open)$('detalhes-conteudo').replaceChildren(); if (origin?.isConnected) origin.focus({preventScroll:true}); });
   $('acao-detalhes').addEventListener('click', () => { const action = detailAction; origin = null; dialog.close(); action?.(); });
 
   function renderizar() { if (!busy) { viagens(); clientes(); } }

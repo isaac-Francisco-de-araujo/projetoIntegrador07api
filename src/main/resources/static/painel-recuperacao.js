@@ -30,7 +30,7 @@ export function iniciarRecuperacao(){
         const novo=await api(`/api/diagnosticos/ENVIO/${d.operacaoId}`);
         navegarPara('email');mostrarConsultaTentativa(tentativa,novo);$('consulta-tentativa').scrollIntoView({block:'start'});return;
       }
-      if(acao.codigo==='CONSULTAR_AVISOS'){navegarPara('pacotes');await mostrarRecebimento(acao.referencia,$('avisos-recebimento'));}
+      if(acao.codigo==='CONSULTAR_AVISOS'){navegarPara('pacotes');await mostrarRecebimento(acao.referencia,$('avisos-recebimento'));$('recebimento-opcional').open=true;$('recebimento-opcional').scrollIntoView({block:'start'});}
     }catch(error){if(atual())apresentarErro(alvo,error);}
     finally{botoes.forEach(b=>b.disabled=false);}
   });

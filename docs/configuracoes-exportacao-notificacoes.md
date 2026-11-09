@@ -1,5 +1,10 @@
 # Configurações da operação, exportação e notificações — V9
 
+**Interface atual (03/11/2026):** [uso diário simplificado](uso-diario-simplificado.md).
+Configurações resume conta, pasta e cópia; requisitos/testes ficam recolhidos e
+restritos. Confirmação ao motorista é opcional, sem exigir endereço para importar.
+Os contratos e resultados históricos abaixo são preservados.
+
 **Evolução V10:** [Diagnóstico e Recuperação](diagnostico-recuperacao.md) amplia a
 exibição dos resultados, centraliza pendências e preserva cada tentativa de cópia.
 A recuperação da exportação apenas registra eventos; não executa seu transporte.

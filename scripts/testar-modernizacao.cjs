@@ -62,7 +62,7 @@ async function run(){
   await page.locator('#limpar-filtros').click();await page.locator('[data-ordenar="numero"]').click();
   assert.equal(await page.locator('#lista-viagens tr:first-child td:first-child strong').textContent(),'66213');
   await page.locator('[data-ordenar="numero"]').click();assert.equal(await page.locator('#lista-viagens tr:first-child td:first-child strong').textContent(),'90026');
-  await page.locator('#filtro-inicio').fill('2026-10-20');await page.locator('#filtro-inicio').dispatchEvent('change');
+  await page.locator('#viagens details').filter({has:page.locator('#filtro-inicio')}).locator('summary').click();await page.locator('#filtro-inicio').fill('2026-10-20');await page.locator('#filtro-inicio').dispatchEvent('change');
   await page.locator('#filtro-fim').fill('2026-10-10');await page.locator('#filtro-fim').dispatchEvent('change');
   assert.match(await page.locator('#resultado-consulta-viagens').textContent(),/Revise/);await page.locator('#limpar-filtros').click();
   checks.push('XML preservado; últimas viagens, paginação, filtro global por cliente/status, datas e ordenação funcionam com 28 viagens reais da fixture');

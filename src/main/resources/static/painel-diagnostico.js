@@ -29,15 +29,20 @@ export function cartaoProblema(p){
     node('p',`Etapa: ${p.etapa}`),node('p',p.mensagem),node('p',`Causa conhecida: ${p.causaConhecida}`),node('p',`Como resolver: ${p.orientacao}`));
   return li;
 }
-export function renderizarDiagnostico(alvo,d,{substituir=true,compacto=false}={}){
+export function renderizarDiagnostico(alvo,d,{substituir=true,compacto=true}={}){
   if(!alvo)return;delete alvo.dataset.falhaConsulta;const classe=d.gravidade==='ERRO'?'erro':d.gravidade==='SUCESSO'?'sucesso':'atencao';
   const artigo=node('article',null,`diag-card diag-${classe}`);artigo.dataset.operacaoId=d.operacaoId||'';artigo.dataset.codigo=d.codigo;artigo.setAttribute('role','region');artigo.setAttribute('aria-label',`${classe==='erro'?'Erro':classe==='sucesso'?'Concluído':'Atenção'} da operação`);
-  artigo.append(node('h3',`${classe==='erro'?'⛔ Erro / Falha':classe==='sucesso'?'✓ Concluído':'⚠ Atenção / Pendente'} · ${d.mensagem}`));
-  if(d.pacote)artigo.append(node('p',`Pacote: ${d.pacote}${d.pacoteId?' · #'+d.pacoteId:''}`));
-  artigo.append(node('p',`Etapa: ${d.etapa} · Situação: ${d.situacao}`),node('p',d.impacto,'diag-impacto'),node('p',`Orientação: ${d.orientacao}`));
-  if(d.resolucao)artigo.append(node('p',`Correção comprovada: ${d.resolucao.criterio} Referência ${d.resolucao.referencia}${d.resolucao.dataHora?' · '+new Date(d.resolucao.dataHora).toLocaleString('pt-BR'):''}. O diagnóstico original foi preservado.`,'diag-resolucao'));
+  artigo.append(node('h3',d.situacao==='SIMULADO'?'Teste sem envio':`${classe==='erro'?'⛔ Erro / Falha':classe==='sucesso'?'✓ Concluído':'⚠ Atenção / Pendente'} · ${d.mensagem}`));
+  if(d.situacao==='SIMULADO')artigo.className='diag-card';
+  if(compacto){
+    artigo.append(node('p',[d.pacote,d.estado==='RESOLVIDO'?'Resolvido':d.estado==='EM_PROCESSAMENTO'?'Em processamento':'Precisa de ação',d.dataHora?new Date(d.dataHora).toLocaleString('pt-BR'):null].filter(Boolean).join(' · ')));
+  }
   if(!compacto&&d.problemas?.length){const lista=node('ul',null,'diag-problemas');lista.append(...d.problemas.map(cartaoProblema));artigo.append(lista);}
   const detalhes=node('details');detalhes.append(node('summary','Ver detalhes'));
+  if(d.situacao==='SIMULADO')detalhes.append(node('p',d.mensagem));
+  if(d.pacote)detalhes.append(node('p',`Pacote: ${d.pacote}${d.pacoteId?' · #'+d.pacoteId:''}`));
+  detalhes.append(node('p',`Etapa: ${d.etapa} · Situação: ${d.situacao}`),node('p',d.impacto,'diag-impacto'),node('p',`Orientação: ${d.orientacao}`));
+  if(d.resolucao)detalhes.append(node('p',`Correção comprovada: ${d.resolucao.criterio} · ${d.resolucao.referencia}`,'diag-resolucao'));
   detalhes.append(node('p',`Referência da operação: ${d.operacaoId||'não disponível'}`),node('p',`Referência da requisição: ${d.correlacaoId||'não disponível'}`),node('p',`Data: ${d.dataHora?new Date(d.dataHora).toLocaleString('pt-BR'):'não informada'}`),node('p',`Código: ${d.codigo} · Versão: ${d.versao}`),node('p',`Causa conhecida: ${d.causaConhecida}`));
   if(compacto&&d.problemas?.length){const lista=node('ul',null,'diag-problemas');lista.append(...d.problemas.map(cartaoProblema));detalhes.append(lista);}
   for(const h of d.recuperacoes||[]){
@@ -50,11 +55,11 @@ export function renderizarDiagnostico(alvo,d,{substituir=true,compacto=false}={}
     if(['RETOMAR_EXPORTACAO','SELECIONAR_ZIP_CORRIGIDO','REVISAR_ASSOCIACOES'].includes(acao.codigo)&&document.documentElement.dataset.operador!=='true')continue;
     if(acao.codigo==='CONFIGURAR_PASTA'&&document.documentElement.dataset.administrador!=='true')continue;
     const button=node('button',acao.rotulo,'button secondary');button.type='button';button.dataset.acaoRecuperacao=acao.codigo;
-    button.addEventListener('click',()=>{if(acao.codigo==='COPIAR_SUPORTE')copiar(d,acoes);else artigo.dispatchEvent(new CustomEvent('recuperar-operacao',{bubbles:true,detail:{acao,diagnostico:d,alvo}}));});acoes.append(button);
+    button.addEventListener('click',()=>{if(acao.codigo==='COPIAR_SUPORTE')copiar(d,detalhes);else artigo.dispatchEvent(new CustomEvent('recuperar-operacao',{bubbles:true,detail:{acao,diagnostico:d,alvo}}));});(acao.codigo==='COPIAR_SUPORTE'?detalhes:acoes).append(button);
   }
   artigo.append(acoes);if(substituir)alvo.replaceChildren(artigo);else alvo.append(artigo);
   const chave=`${d.operacaoId}:${d.codigo}:${d.estado}`;
-  if(ultimos.get(alvo)!==chave){ultimos.set(alvo,chave);const anuncio=document.getElementById('anuncios-diagnostico');if(anuncio&&classe==='erro')anuncio.textContent=`Erro: ${d.mensagem} Etapa ${d.etapa}. Consulte o diagnóstico e as ações disponíveis.`;}
+  if(ultimos.get(alvo)!==chave){ultimos.set(alvo,chave);const anuncio=document.getElementById('anuncios-diagnostico');if(anuncio&&classe==='erro'&&alvo.getClientRects().length)anuncio.textContent=`Erro: ${d.mensagem} Consulte o diagnóstico e as ações disponíveis.`;}
   return artigo;
 }
 export function apresentarErro(alvo,error,{tentarNovamente}={}){const card=renderizarDiagnostico(alvo,diagnosticoLocal(error));if(card){const detalhes=card.querySelector('details');if(error?.rota)detalhes.append(node('p',`${error.metodo} ${error.rota}${error.status?' · HTTP '+error.status:''}`));if(error?.detalhes)detalhes.append(node('p',error.detalhes));if(tentarNovamente){const button=node('button','Tentar novamente','button secondary');button.type='button';button.addEventListener('click',tentarNovamente);card.querySelector('.diag-acoes').prepend(button);}}if(alvo&&error?.metodo==='GET')alvo.dataset.falhaConsulta=error.rota;return card;}

@@ -2,7 +2,8 @@
 import { apresentarErro,referenciaLocal } from './painel-diagnostico.js';
 export const $ = id => document.getElementById(id);
 export const state = { clientes: [], viagens: [], documentos: [], daViagem: [], viagem: '', selecionados: new Set(), anexosSelecionados: new Set(), anexos: [], carregando: false, previaOcupada: false, papeis: [] };
-export const podeOperar = () => state.papeis.some(p => ['ROLE_ADMIN','ROLE_OPERADOR'].includes(p));
+let operacoesLiberadas=false;
+export const podeOperar = () => operacoesLiberadas&&state.papeis.some(p => ['ROLE_ADMIN','ROLE_OPERADOR'].includes(p));
 export const podeAdministrar = () => state.papeis.includes('ROLE_ADMIN');
 export function element(tag,text,className){const node=document.createElement(tag);if(text!==undefined&&text!==null)node.textContent=String(text);if(className)node.className=className;return node;}
 export function avisar(message,error=false){const aviso=$('aviso'),obj=message instanceof Error?message:null,incerto=obj?.incerto===true;
@@ -23,7 +24,7 @@ export async function api(path,options={}){
   const rota=path.split('?')[0],metodo=(pedido.method||'GET').toUpperCase(),alteracao=!['GET','HEAD','OPTIONS'].includes(metodo);
   const consulta=rota==='/api/configuracoes'?'as configurações':rota.startsWith('/api/configuracoes/')?'os testes das configurações':rota.startsWith('/api/pendencias')?'os processamentos':'os dados solicitados';
   const mensagemConsulta=`Não foi possível carregar ${consulta}.`;
-  if(!['GET','HEAD','OPTIONS'].includes(pedido.method||'GET')){const s=await carregarSessao();if(s.csrf)headers.set(s.csrfHeader,s.csrf);}
+  if(alteracao){if(!operacoesLiberadas)throw Object.assign(new Error('Sessão ou versão não verificada. Entre novamente e recarregue o painel.'),{codigo:'ACESSO_NAO_VERIFICADO',incerto:false});const s=await carregarSessao();if(s.csrf)headers.set(s.csrfHeader,s.csrf);}
   let response;
   try{response=await fetch(path,{credentials:'same-origin',...pedido,headers,signal:pedido.signal?AbortSignal.any([pedido.signal,AbortSignal.timeout(timeoutMs)]):AbortSignal.timeout(timeoutMs)});}
   catch(error){const cancelado=pedido.signal?.aborted,timeout=['AbortError','TimeoutError'].includes(error.name);const falha=new Error(alteracao?(cancelado?'A espera foi interrompida no navegador. O resultado ainda não foi confirmado. Consulte o histórico antes de repetir.':timeout?'A resposta demorou além do esperado. O resultado ainda não foi confirmado. Consulte o histórico antes de repetir.':'Não foi possível conectar à aplicação. O resultado ainda não foi confirmado. Consulte o histórico antes de repetir.'):mensagemConsulta);Object.assign(falha,{incerto:alteracao,codigo:cancelado?'ESPERA_INTERROMPIDA':timeout?'TEMPO_LIMITE':'CONEXAO_INDISPONIVEL',referencia:referenciaLocal(),rota,metodo});throw falha;}
@@ -43,18 +44,26 @@ export async function api(path,options={}){
   return body;
 }
 export async function iniciarSessao(){
+  await carregarSessao();operacoesLiberadas=true;
   const s=await carregarSessao();$('sessao-usuario').textContent=`${s.usuario==='DESENVOLVIMENTO_LOCAL'?'Sessão local':s.usuario} · ${s.papeis.map(p=>p.replace('ROLE_','')).join(', ')}`;
   document.documentElement.dataset.operador=String(podeOperar());document.documentElement.dataset.administrador=String(podeAdministrar());
   $('sessao-usuario').title=`${s.usuario} · ${s.papeis.map(p=>p.replace('ROLE_','')).join(', ')}`;
-  $('modo-email').textContent=s.modoEmail==='REAL'?'04 / ENVIO REAL MANUAL':'04 / SIMULAÇÃO MANUAL';
+  state.envioReal=s.modoEmail==='REAL';
+  $('modo-email').textContent=state.envioReal?'Envio manual':'Envio não configurado';
   $('sair').hidden=s.usuario==='DESENVOLVIMENTO_LOCAL';
+  if(s.usuario==='DESENVOLVIMENTO_LOCAL'){
+    const acesso=element('a','Acesso local');acesso.href='/login';acesso.title='Desenvolvimento isolado, sem login individual';$('sair').after(acesso);
+  }
   $('sair').addEventListener('click',async()=>{
     const headers=new Headers();if(s.csrf)headers.set(s.csrfHeader,s.csrf);
-    await fetch('/logout',{method:'POST',credentials:'same-origin',headers,signal:AbortSignal.timeout(10000)});location.assign('/login');
+    try{const resposta=await fetch('/logout',{method:'POST',credentials:'same-origin',headers,signal:AbortSignal.timeout(10000)});if(!resposta.ok)throw new Error('Não foi possível encerrar a sessão. Tente sair novamente.');location.assign('/login');}catch(error){avisar(error.message,true);}
   });
   if(!podeOperar())document.querySelectorAll('#form-pacote input,#form-pacote button,#form-importacao input,#form-importacao select,#form-importacao button,#form-email input').forEach(n=>{n.disabled=true;});
 }
 document.addEventListener('sessao-expirada',()=>{
+  operacoesLiberadas=false;state.papeis=[];
+  document.documentElement.dataset.operador='false';document.documentElement.dataset.administrador='false';
+  document.querySelectorAll('main form input,main form select,main form button,#confirmar-zip').forEach(n=>{n.disabled=true;});
   if($('sessao-expirada'))return;
   const aviso=element('aside',null,'card');aviso.id='sessao-expirada';aviso.setAttribute('role','alert');
   aviso.append(element('p','Sessão encerrada. O rascunho desta aba foi preservado. Entre novamente em outra aba e recarregue os dados antes de confirmar ações.'));
