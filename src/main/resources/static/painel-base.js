@@ -1,5 +1,6 @@
 'use strict';
 import { apresentarErro,referenciaLocal } from './painel-diagnostico.js';
+import { urlAplicacao } from './painel-rotas.js';
 export const $ = id => document.getElementById(id);
 export const state = { clientes: [], viagens: [], documentos: [], daViagem: [], viagem: '', selecionados: new Set(), anexosSelecionados: new Set(), anexos: [], carregando: false, previaOcupada: false, papeis: [] };
 let operacoesLiberadas=false;
@@ -26,7 +27,7 @@ export async function api(path,options={}){
   const mensagemConsulta=`Não foi possível carregar ${consulta}.`;
   if(alteracao){if(!operacoesLiberadas)throw Object.assign(new Error('Sessão ou versão não verificada. Entre novamente e recarregue o painel.'),{codigo:'ACESSO_NAO_VERIFICADO',incerto:false});const s=await carregarSessao();if(s.csrf)headers.set(s.csrfHeader,s.csrf);}
   let response;
-  try{response=await fetch(path,{credentials:'same-origin',...pedido,headers,signal:pedido.signal?AbortSignal.any([pedido.signal,AbortSignal.timeout(timeoutMs)]):AbortSignal.timeout(timeoutMs)});}
+  try{response=await fetch(urlAplicacao(path),{credentials:'same-origin',...pedido,headers,signal:pedido.signal?AbortSignal.any([pedido.signal,AbortSignal.timeout(timeoutMs)]):AbortSignal.timeout(timeoutMs)});}
   catch(error){const cancelado=pedido.signal?.aborted,timeout=['AbortError','TimeoutError'].includes(error.name);const falha=new Error(alteracao?(cancelado?'A espera foi interrompida no navegador. O resultado ainda não foi confirmado. Consulte o histórico antes de repetir.':timeout?'A resposta demorou além do esperado. O resultado ainda não foi confirmado. Consulte o histórico antes de repetir.':'Não foi possível conectar à aplicação. O resultado ainda não foi confirmado. Consulte o histórico antes de repetir.'):mensagemConsulta);Object.assign(falha,{incerto:alteracao,codigo:cancelado?'ESPERA_INTERROMPIDA':timeout?'TEMPO_LIMITE':'CONEXAO_INDISPONIVEL',referencia:referenciaLocal(),rota,metodo});throw falha;}
   aoResponder?.(response);
   if(response.status===204)return null;
@@ -52,20 +53,30 @@ export async function iniciarSessao(){
   $('modo-email').textContent=state.envioReal?'Envio manual':'Envio não configurado';
   $('sair').hidden=s.usuario==='DESENVOLVIMENTO_LOCAL';
   if(s.usuario==='DESENVOLVIMENTO_LOCAL'){
-    const acesso=element('a','Acesso local');acesso.href='/login';acesso.title='Desenvolvimento isolado, sem login individual';$('sair').after(acesso);
+    const acesso=element('a','Acesso local');acesso.href=urlAplicacao('/login');acesso.title='Desenvolvimento isolado, sem login individual';$('sair').after(acesso);
   }
   $('sair').addEventListener('click',async()=>{
     const headers=new Headers();if(s.csrf)headers.set(s.csrfHeader,s.csrf);
-    try{const resposta=await fetch('/logout',{method:'POST',credentials:'same-origin',headers,signal:AbortSignal.timeout(10000)});if(!resposta.ok)throw new Error('Não foi possível encerrar a sessão. Tente sair novamente.');location.assign('/login');}catch(error){avisar(error.message,true);}
+    try{const resposta=await fetch(urlAplicacao('/logout'),{method:'POST',credentials:'same-origin',headers,signal:AbortSignal.timeout(10000)});if(!resposta.ok)throw new Error('Não foi possível encerrar a sessão. Tente sair novamente.');location.assign(urlAplicacao('/login?logout'));}catch(error){avisar(error.message,true);}
   });
   if(!podeOperar())document.querySelectorAll('#form-pacote input,#form-pacote button,#form-importacao input,#form-importacao select,#form-importacao button,#form-email input').forEach(n=>{n.disabled=true;});
 }
 document.addEventListener('sessao-expirada',()=>{
   operacoesLiberadas=false;state.papeis=[];
   document.documentElement.dataset.operador='false';document.documentElement.dataset.administrador='false';
+  document.body.dataset.sessaoEncerrada='true';
+  document.querySelectorAll('dialog[open]').forEach(dialog=>dialog.close());
   document.querySelectorAll('main form input,main form select,main form button,#confirmar-zip').forEach(n=>{n.disabled=true;});
   if($('sessao-expirada'))return;
   const aviso=element('aside',null,'card');aviso.id='sessao-expirada';aviso.setAttribute('role','alert');
   aviso.append(element('p','Sessão encerrada. O rascunho desta aba foi preservado. Entre novamente em outra aba e recarregue os dados antes de confirmar ações.'));
-  const link=element('a','Entrar novamente');link.href='/login?expirada';link.target='_blank';link.rel='noopener';aviso.append(link);document.querySelector('main').prepend(aviso);
+  const link=element('a','Entrar novamente');link.href=urlAplicacao('/login?expirada');link.target='_blank';link.rel='noopener';aviso.append(link);document.body.prepend(aviso);
 });
+// Uma página antiga não recupera acesso por voltar/avançar ou por manter outra aba aberta.
+window.addEventListener('pagehide',()=>{document.body.style.visibility='hidden';});
+async function revalidarPagina(){
+  try{await api('/api/sessao');}catch(error){if(error.status!==401)document.dispatchEvent(new Event('sessao-expirada'));}
+  finally{document.body.style.visibility='';}
+}
+window.addEventListener('pageshow',event=>{if(event.persisted)revalidarPagina();});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&operacoesLiberadas)revalidarPagina();});

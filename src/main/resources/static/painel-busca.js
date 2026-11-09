@@ -1,5 +1,6 @@
 import { $,api,element,state } from './painel-base.js';
 import { navegarPara } from './painel-navegacao.js';
+import { urlAplicacao } from './painel-rotas.js';
 let pagina=0,sequencia=0,timer;
 const campos=['entidade','busca','numero','cliente','pacote','tipo','estado','inicio','fim','ordem','direcao'];
 async function carregar(){
@@ -12,7 +13,7 @@ async function carregar(){
         const dialog=$('busca-detalhe');$('busca-detalhe-conteudo').textContent='Carregando detalhes…';dialog.showModal();
         try{let d=item;if(r.entidade==='CLIENTE')d=await api(`/api/clientes/${item.id}`);if(r.entidade==='VIAGEM')d=await api(`/api/viagens/${item.id}`);if(r.entidade==='PACOTE')d=await api(`/api/pacotes/${item.id}/conferencia-exclusao`);
           const lista=element('dl',null,'record-fields');for(const [k,v] of Object.entries(d)){if(v===null||typeof v==='object')continue;lista.append(element('dt',k),element('dd',String(v)));}$('busca-detalhe-conteudo').replaceChildren(lista);
-          if(r.entidade==='ARQUIVO'){const a=element('a','Baixar original');a.href=`/api/${item.origem==='ANEXO'?'anexos':'documentos'}/${item.id}/arquivo`;a.download='';$('busca-detalhe-conteudo').append(a);}
+          if(r.entidade==='ARQUIVO'){const a=element('a','Baixar original');a.href=urlAplicacao(`/api/${item.origem==='ANEXO'?'anexos':'documentos'}/${item.id}/arquivo`);a.download='';$('busca-detalhe-conteudo').append(a);}
           const viagemId=r.entidade==='VIAGEM'?item.id:item.viagemId;if(viagemId){const abrir=element('button','Abrir documentos da viagem vinculada');abrir.type='button';abrir.addEventListener('click',async()=>{const id=String(viagemId);if(!state.viagens.some(v=>String(v.id)===id)){const v=await api(`/api/viagens/${id}`);state.viagens.push(v);$('viagem-selecionada').add(new Option(`CT-e ${v.numero}`,id));}$('viagem-selecionada').value=id;$('viagem-selecionada').dispatchEvent(new Event('change'));dialog.close();navegarPara('documentos');});$('busca-detalhe-conteudo').append(abrir);}
         }catch(e){$('busca-detalhe-conteudo').textContent=e.message;}
       });row.append(detalhes);alvo.append(row);

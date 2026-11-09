@@ -32,6 +32,7 @@ public class SegurancaConfig {
         if(!ativa)return http.authorizeHttpRequests(a->a.anyRequest().permitAll()).csrf(c->c.disable()).build();
         var api=PathPatternRequestMatcher.withDefaults().matcher("/api/**");
         return http.addFilterBefore(new RevalidarSessaoFilter(usuarios),org.springframework.security.web.access.intercept.AuthorizationFilter.class).authorizeHttpRequests(a->a
+                .requestMatchers(HttpMethod.GET,"/","/acesso.css","/acesso-logo.svg","/acesso.js").permitAll()
                 .requestMatchers("/login","/error").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/configuracoes/**").hasRole("ADMIN")
@@ -41,7 +42,7 @@ public class SegurancaConfig {
                 .csrf(c->c.csrfTokenRepository(new HttpSessionCsrfTokenRepository()))
                 .formLogin(f->f.loginPage("/login").successHandler((req,res,auth)->{
                     req.getSession().setAttribute("rotabrasil.credencial",((UserDetails)auth.getPrincipal()).getPassword());
-                    res.sendRedirect(req.getContextPath()+"/");
+                    res.sendRedirect(req.getContextPath()+"/painel");
                 }).permitAll())
                 .logout(l->l.logoutSuccessUrl("/login?logout"))
                 // Uma entry point global impede o formulário padrão do Spring de ser gerado.

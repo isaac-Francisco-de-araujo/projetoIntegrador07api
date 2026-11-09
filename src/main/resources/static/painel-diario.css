@@ -32,6 +32,8 @@ summary { cursor: pointer; padding: 8px 0; font-size: 15px; }
 .zip-problems li { border-left: 3px solid currentColor; padding: 8px 16px; margin-block: 12px; color: #ffb4af; }
 .zip-problems p { margin-block: 4px; }
 html[data-tema="claro"] .zip-problems li { color: #a22120; }
+body[data-sessao-encerrada] > main, body[data-sessao-encerrada] > .sidebar,
+body[data-sessao-encerrada] > .skip-link { display: none !important; }
 .file-diagnostic { padding: 8px 12px; }
 .notice.error, .error { color: #ffb4af; }
 .notice.attention { color: #f5ce77; }

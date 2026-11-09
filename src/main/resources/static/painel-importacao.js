@@ -1,6 +1,7 @@
 import { $, state, api, avisar, podeOperar, tamanhoArquivo } from './painel-base.js';
 import { receberPacoteIndividual } from './painel-pacotes.js';
 import { sha256 } from './painel-pdf.js';
+import { urlAplicacao } from './painel-rotas.js';
 
 const LIMITE = 20 * 1024 * 1024;
 
@@ -82,7 +83,7 @@ export function iniciarImportacao({ atualizar }) {
         const original = await api(`/api/documentos/${doc.id}/arquivo`,{resposta:'bytes'});
         if (await sha256(original) !== doc.sha256) throw new Error('O XML original mudou ou está inconsistente. Atualize os dados antes de preparar o PDF.');
         if (bytes.length + original.length > LIMITE) throw new Error('O PDF e o XML juntos ultrapassam o limite de 20 MiB do pacote.');
-        const { zip } = await import('/webjars/fflate/0.8.3/esm/browser.js');
+        const { zip } = await import(urlAplicacao('/webjars/fflate/0.8.3/esm/browser.js'));
         const mtime = new Date(2000,0,1,0,0,0);
         const entries = { [`xml/cte-${doc.id}.xml`]:[original,{level:0,mtime}], [`pdf/${file.name}`]:[bytes,{level:0,mtime}] };
         const packed = await new Promise((resolve,reject) => zip(entries,{level:0,mtime},(error,result) => error ? reject(error) : resolve(result)));

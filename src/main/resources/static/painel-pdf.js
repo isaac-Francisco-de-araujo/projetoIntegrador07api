@@ -1,13 +1,14 @@
 import { $, element, api } from './painel-base.js';
+import { urlAplicacao } from './painel-rotas.js';
 
 const MAX_PDF = 20 * 1024 * 1024;
 let libraries;
 async function dependencias() {
   if (!libraries) libraries = Promise.all([
-    import('/webjars/pdfjs-dist/6.4.299/build/pdf.mjs'),
-    import('/webjars/pdf-lib/1.17.1/dist/pdf-lib.esm.min.js')
+    import(urlAplicacao('/webjars/pdfjs-dist/6.4.299/build/pdf.mjs')),
+    import(urlAplicacao('/webjars/pdf-lib/1.17.1/dist/pdf-lib.esm.min.js'))
   ]).then(([viewer, writer]) => {
-    viewer.GlobalWorkerOptions.workerSrc = '/webjars/pdfjs-dist/6.4.299/build/pdf.worker.mjs';
+    viewer.GlobalWorkerOptions.workerSrc = urlAplicacao('/webjars/pdfjs-dist/6.4.299/build/pdf.worker.mjs');
     return { viewer, writer };
   }).catch(error => { libraries = null; throw error; });
   return libraries;
@@ -225,8 +226,8 @@ export function criarEditorPdf({ aoSalvar }) {
         if (token !== generation || !config.valido()) return;
         original = bytes; deps = loaded;
         loadingTask = deps.viewer.getDocument({ data:bytes.slice(), isEvalSupported:false, enableXfa:false,
-          cMapUrl:'/webjars/pdfjs-dist/6.4.299/cmaps/', cMapPacked:true,
-          standardFontDataUrl:'/webjars/pdfjs-dist/6.4.299/standard_fonts/', wasmUrl:'/webjars/pdfjs-dist/6.4.299/wasm/' });
+          cMapUrl:urlAplicacao('/webjars/pdfjs-dist/6.4.299/cmaps/'), cMapPacked:true,
+          standardFontDataUrl:urlAplicacao('/webjars/pdfjs-dist/6.4.299/standard_fonts/'), wasmUrl:urlAplicacao('/webjars/pdfjs-dist/6.4.299/wasm/') });
         documentPdf = await loadingTask.promise;
         if (token !== generation) return;
         await renderizar();
@@ -242,7 +243,7 @@ export async function gerarZipRevisado(file, pacote, revisions) {
   if (!pacote.conteudoValido || pacote.interrompida) throw new Error('Corrija primeiro os erros do pacote na origem e confira novamente.');
   const original = new Uint8Array(await file.arrayBuffer());
   if (original.length > MAX_PDF || await sha256(original) !== pacote.sha256) throw new Error('O ZIP mudou desde a conferência.');
-  const { unzip, zip } = await import('/webjars/fflate/0.8.3/esm/browser.js');
+  const { unzip, zip } = await import(urlAplicacao('/webjars/fflate/0.8.3/esm/browser.js'));
   const expected = new Map(pacote.arquivos.map(item => [item.caminhoInterno, item]));
   let total = 0;
   const entries = await new Promise((resolve, reject) => unzip(original, { filter: item => {

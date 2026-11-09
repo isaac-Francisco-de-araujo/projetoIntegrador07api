@@ -1,5 +1,6 @@
 import { $, state, element, avisar, api, vazio, data, podeOperar } from './painel-base.js';
 import { criarConsultas } from './painel-consultas.js';
+import { urlAplicacao } from './painel-rotas.js';
 import { confirmarAcao } from './painel-confirmacao.js';
 import { navegarPara } from './painel-navegacao.js';
 let consulta = 0;
@@ -35,7 +36,7 @@ function documentos() {
     button.type = 'button'; button.setAttribute('aria-label', `${arquivados ? 'Restaurar' : 'Excluir'} ${doc.tipo} ${doc.nomeArquivo}`);
     if (arquivados) button.addEventListener('click', () => restaurarDocumento(doc, button));
     else button.addEventListener('click', () => confirmarExclusao('documento', doc.id, doc.nomeArquivo, button));
-    button.hidden=!podeOperar();const baixar=element('a','Baixar original','row-action');baixar.href=`/api/documentos/${doc.id}/arquivo`;baixar.setAttribute('download','');
+    button.hidden=!podeOperar();const baixar=element('a','Baixar original','row-action');baixar.href=urlAplicacao(`/api/documentos/${doc.id}/arquivo`);baixar.setAttribute('download','');
     action.append(baixar,button);
     const type = element('td'); type.append(element('span', doc.tipo, 'document-type'));
     row.append(choice, name, type, element('td', doc.chaveAcesso || 'Não se aplica / não informada', 'fiscal-key'), action);
@@ -183,7 +184,7 @@ function renderizarAnexos() {
     button.addEventListener('click',async()=>{
       if(!anexo.arquivadoEm){confirmarExclusao('anexo',anexo.id,anexo.nomeArquivo,button,anexo.viagemIds);return;}
       button.disabled=true;try{await api(`/api/anexos/${anexo.id}/restaurar`,{method:'POST'});await atualizar();avisar('PDF restaurado em todas as viagens vinculadas.');}catch(error){avisar(error.message,true);}finally{button.disabled=false;}
-    });const baixar=element('a','Baixar original','row-action');baixar.href=`/api/anexos/${anexo.id}/arquivo`;baixar.setAttribute('download','');item.append(label,baixar,button);list.append(item);
+    });const baixar=element('a','Baixar original','row-action');baixar.href=urlAplicacao(`/api/anexos/${anexo.id}/arquivo`);baixar.setAttribute('download','');item.append(label,baixar,button);list.append(item);
   }
 }
 

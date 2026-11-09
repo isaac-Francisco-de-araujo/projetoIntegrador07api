@@ -33,7 +33,47 @@ class SegurancaHttpTest {
     }
     @Test void apiExigeLoginEPaginaRedirecionaAoFormulario()throws Exception{
         mvc.perform(get("/api/viagens")).andExpect(status().isUnauthorized()).andExpect(header().exists("X-Request-Id"));
-        mvc.perform(get("/")).andExpect(status().is3xxRedirection());
+        mvc.perform(get("/painel")).andExpect(redirectedUrl("http://localhost/login"));
+    }
+    @Test void apresentacaoPublicaSomenteComRecursosDeAcesso()throws Exception{
+        mvc.perform(get("/")).andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store"))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("Organize documentos de viagens e acompanhe sua operação.")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/login\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("painel.js"))))
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("/api/"))));
+        for(String recurso:new String[]{"/acesso.css","/acesso-logo.svg","/acesso.js"})mvc.perform(get(recurso)).andExpect(status().isOk());
+        for(String protegido:new String[]{"/painel","/index.html","/painel.js","/painel-admin.js","/webjars/fflate/0.8.3/esm/browser.js"})
+            mvc.perform(get(protegido)).andExpect(redirectedUrl("http://localhost/login"));
+        for(String arquivo:new String[]{"/api/documentos/1/arquivo","/api/anexos/1/arquivo"})
+            mvc.perform(get(arquivo)).andExpect(status().isUnauthorized()).andExpect(content().contentTypeCompatibleWith("application/json"));
+    }
+    @Test void loginSempreVaiAoPainelLocalEAutenticadoNaoRepeteFormulario()throws Exception{
+        mvc.perform(get("/painel").param("redirect","https://externo.invalid"));
+        var resultado=mvc.perform(formLogin().user("operador").password(SENHA)).andExpect(redirectedUrl("/painel")).andReturn();
+        var sessao=(MockHttpSession)resultado.getRequest().getSession(false);
+        mvc.perform(get("/login").session(sessao).param("continue","https://externo.invalid")).andExpect(redirectedUrl("/painel"));
+        for(String caminho:new String[]{"/painel","/index.html"})mvc.perform(get(caminho).session(sessao))
+            .andExpect(status().isOk()).andExpect(header().string("Cache-Control","no-store"))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("id=\"sessao-usuario\"")));
+    }
+    @Test void entradaEFormularioRespeitamContextPath()throws Exception{
+        mvc.perform(get("/rota/").contextPath("/rota")).andExpect(status().isOk())
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("href=\"/rota/login\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("src=\"/rota/acesso-logo.svg\"")));
+        mvc.perform(get("/rota/login").contextPath("/rota")).andExpect(status().isOk())
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("action=\"/rota/login\"")))
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("name=\"_csrf\"")));
+        mvc.perform(get("/rota/painel").contextPath("/rota")).andExpect(redirectedUrl("http://localhost/rota/login"));
+        mvc.perform(get("/rota/painel").contextPath("/rota").session(login("operador"))).andExpect(status().isOk())
+            .andExpect(content().string(org.hamcrest.Matchers.containsString("src=\"/rota/painel.js\"")));
+        mvc.perform(get("/rota/login").contextPath("/rota").session(login("operador"))).andExpect(redirectedUrl("/rota/painel"));
+    }
+    @Test void loginSemCsrfRecusadoEUsuarioNaoAdminNaoCadastra()throws Exception{
+        mvc.perform(post("/login").param("username","operador").param("password",SENHA)).andExpect(status().isForbidden());
+        for(String usuario:new String[]{"leitor","operador"})mvc.perform(post("/api/admin/usuarios").session(login(usuario)).with(csrf())
+            .contentType("application/json").content("{\"usuario\":\"negado\",\"senha\":\"SenhaSinteticaNova12!\",\"papel\":\"ADMIN\"}"))
+            .andExpect(status().isForbidden());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM usuarios WHERE usuario='negado'",Integer.class)).isZero();
     }
     @Test void leitorConsultaMasNaoImportaNemAdministra()throws Exception{
         var s=login("leitor");mvc.perform(get("/api/viagens").session(s)).andExpect(status().isOk());

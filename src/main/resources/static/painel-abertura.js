@@ -1,7 +1,9 @@
+import { urlAplicacao } from './painel-rotas.js';
 const $ = id => document.getElementById(id);
 
 export function iniciarAbertura() {
   const screen = $('abertura');
+  $('abertura-erro').querySelector('a').href=urlAplicacao('/painel');
   const targets = [...document.querySelectorAll('body > main, body > aside, body > .skip-link')];
   const previousFocus = document.activeElement;
   let closed = false, failed = false;
@@ -62,7 +64,7 @@ export function iniciarAbertura() {
       $('abertura-status').textContent = 'O workspace precisa da sua atenção.';
       $('abertura-erro-texto').textContent = error.message || 'Não foi possível concluir o carregamento. Confira sua conexão e tente novamente.';
       $('abertura-erro').hidden = false;
-      if(error.status===401){const entrar=document.createElement('a');entrar.href='/login';entrar.textContent='Entrar';entrar.className='button primary';$('abertura-erro').prepend(entrar);}
+      if(error.status===401){const entrar=document.createElement('a');entrar.href=urlAplicacao('/login?expirada');entrar.textContent='Entrar';entrar.className='button primary';$('abertura-erro').prepend(entrar);}
       $('abertura-pular').hidden = true;
       $('abertura-movimento').hidden = true;
     }

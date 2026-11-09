@@ -22,8 +22,8 @@ public class CorrelacaoAuditoriaFilter extends OncePerRequestFilter {
         try{chain.doFilter(req,res);}finally{
             try{
                 Object rota=req.getAttribute(HandlerMapping.BEST_MATCHING_PATTERN_ATTRIBUTE);
-                if(rota!=null&&req.getRequestURI().startsWith("/api/"))LOG.info("requisicao correlacao={} metodo={} rota={} status={} duracaoMs={}",id,req.getMethod(),rota,res.getStatus(),(System.nanoTime()-inicio)/1_000_000);
-                if(rota!=null&&req.getRequestURI().startsWith("/api/")&&!List.of("GET","HEAD","OPTIONS").contains(req.getMethod())){
+                if(rota!=null&&req.getRequestURI().startsWith(req.getContextPath()+"/api/"))LOG.info("requisicao correlacao={} metodo={} rota={} status={} duracaoMs={}",id,req.getMethod(),rota,res.getStatus(),(System.nanoTime()-inicio)/1_000_000);
+                if(rota!=null&&req.getRequestURI().startsWith(req.getContextPath()+"/api/")&&!List.of("GET","HEAD","OPTIONS").contains(req.getMethod())){
                     Object referencia=req.getAttribute("auditoriaReferencia");if(referencia==null)referencia=req.getAttribute(HandlerMapping.URI_TEMPLATE_VARIABLES_ATTRIBUTE);
                     String ref=null;
                     if(referencia instanceof Map<?,?> valores){var seguros=new TreeMap<String,String>();valores.forEach((k,v)->seguros.put(k.toString(),v.toString().matches("[0-9a-f-]{1,36}")?v.toString():"INVALIDO"));ref=seguros.toString();}
