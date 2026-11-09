@@ -12,7 +12,7 @@ indica aceite do provedor, sem afirmar entrega/leitura. Consultar avisos abre a
 mensagem e suas tentativas; não dispara transporte. Reenvio exige conferência e
 confirmação vinculadas. Sucesso posterior pode resolver falha conhecida, mas não
 resolve uma tentativa anterior desconhecida. Importação/exportação são independentes.
-Código atual exige V14; não houve migração operacional nesta revisão.
+Código atual exige V15; não houve migração operacional nesta revisão.
 
 **Revisão atual (31/10/2026):** veja [Estabilização](estabilizacao.md). O menu tem um
 contador compacto (falhas + atenção, `99+`), com divisão na tela e indisponibilidade

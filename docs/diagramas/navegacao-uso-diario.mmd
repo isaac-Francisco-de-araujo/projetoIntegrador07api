@@ -1,14 +1,20 @@
 flowchart TD
-    URL[URL do RotaBrasil] --> PERFIL{Perfil}
+    URL[URL do RotaBrasil /] --> APRESENTACAO[Apresentação pública · sem APIs ou módulos do painel]
+    APRESENTACAO -->|Entrar /login| PERFIL{Perfil e sessão}
     PERFIL -->|operacao sem sessão| LOGIN[Login individual /login · Entrar]
     PERFIL -->|operacao com sessão| REQUISITOS
-    LOGIN -->|autenticação e CSRF| REQUISITOS[Verificar contrato API e sessão]
-    PERFIL -->|desenvolvimento isolado em loopback| REQUISITOS
+    LOGIN -->|autenticação e CSRF| DESTINO[Painel protegido /painel]
+    PERFIL -->|desenvolvimento isolado em loopback · Abrir painel local| DESTINO
+    DESTINO --> REQUISITOS[Carregamento interno · verificar contrato API e sessão]
+    ANTIGO[Favoritos /#aba e /index.html] --> DESTINO
     REQUISITOS -->|falha| BLOQUEIO[Acesso bloqueado · Entrar / Recarregar]
     REQUISITOS -->|válidos| PAINEL[Painel · eventos disponíveis]
     PAINEL --> TRABALHO[Trabalho]
     PAINEL --> ACOMP[Acompanhamento]
     PAINEL -->|ADMIN| ADMIN[Administração]
+    PAINEL -->|Sair · POST e CSRF| SAIDA[Login com confirmação de saída]
+    PAINEL -->|401 ou sessão revogada| EXPIRADA[Ocultar dados e bloquear ações · Entrar novamente]
+    EXPIRADA --> LOGIN
     TRABALHO --> FILA[Fila · responsáveis]
     FILA -.-> REF_FILA[Histórico e referências · UUID sob demanda]
     TRABALHO --> INICIO[Visão geral · indicadores e atalhos]
@@ -39,6 +45,9 @@ flowchart TD
     ENVIOS --> CANAL{Modo documental disponível?}
     CANAL -->|não| SEM_ENVIO[Envio não configurado · confirmação indisponível]
     CANAL -->|sim| CONFERIR_ENVIO[Conferir snapshot · confirmação manual]
+    CONFERIR_ENVIO --> FATURA[Conferir destinatário e conteúdo integral de fatura compartilhada]
+    FATURA --> TENTATIVA[Tentativa persistida antes do transporte · remetente / assunto / texto / anexos]
+    TENTATIVA --> RESULTADO_ENVIO[Aceite não comprova entrega · recusa ou desconhecido sem repetição automática]
     DOCS -->|seleção explícita| ENVIOS
     ENVIOS --> HISTORICO_ENVIO[Histórico recolhido · data / destinatário / resultado]
     HISTORICO_ENVIO --> REFERENCIAS_ENVIO[Ver detalhes · UUID / anexos / reenvio]
@@ -47,11 +56,15 @@ flowchart TD
     INCERTO --> PENDENCIAS
     ADMIN --> CONFIG[Configurações · conta / pasta / cópia / salvar]
     CONFIG --> DETALHES[Requisitos e testes recolhidos]
+    DETALHES --> GMAIL[Gmail de teste · ADMIN escolhe provedor / conta / autenticação]
+    GMAIL --> CREDENCIAL[Credencial externa · OAuth2 ou senha de aplicativo permitida]
+    CREDENCIAL --> TESTE[Prévia sintética sem anexos fiscais · confirmação específica]
+    TESTE --> HIST_TESTE[Última verificação da mesma configuração · histórico sob demanda]
     ADMIN --> OPERADORES[Operadores · lista e filtro]
     OPERADORES --> FORMULARIO[Diálogos · cadastro / permissões / redefinição]
     ADMIN --> SAUDE[Saúde do sistema]
     SAUDE -.-> EVIDENCIA[Backup · manifesto não comprova integridade ou restauração]
-    CENTRAL[Backend central · operação protegida · V14] --> URL
+    CENTRAL[Backend central · operação protegida · V15] --> URL
     PCS[PCs autorizados · navegadores e contas individuais] -->|HTTPS| CENTRAL
     CENTRAL -.-> PRIVADO[Banco e acervo privados · H2 não compartilhado]
     PAINEL -.-> LAZY[Telas secundárias carregam sob demanda · falha local]

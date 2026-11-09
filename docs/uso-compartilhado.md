@@ -1,10 +1,20 @@
 # Uso diário compartilhado
 
+**Estado atual V15:** [revisão integrada e acompanhamento](revisao-equipe-v15.md).
+A conta [Gmail de teste](gmail-configuravel.md) exige ADMIN e não substitui o
+transporte documental ou a configuração Microsoft. As evidências V14 no final
+deste documento são históricas.
+
 **Revisão da experiência (03/11/2026):** consulte
 [uso diário simplificado](uso-diario-simplificado.md) para a investigação ZIP,
 inicialização independente, login sem espera artificial, menu e resultados atuais.
 
 ## 1. Login e operadores
+
+**Entrada atual:** `/` é a apresentação pública; **Entrar** abre `/login`, que usa
+o formulário existente e leva a `/painel`. Com sessão válida não há novo pedido de
+senha. `/index.html` e favoritos `/#aba` continuam compatíveis. Veja
+[rotas, segurança, ambiente protegido e capturas](acesso-apresentacao-login-painel.md).
 
 Reutilizados usuários V8, BCrypt, sessão, CSRF, revalidação de papel e auditoria HTTP.
 A correção local preexistente da seleção de entry point já fazia `/login` responder
@@ -12,8 +22,8 @@ A correção local preexistente da seleção de entry point já fazia `/login` r
 não foi reproduzido neste código. Agora `/login` tem formulário próprio no mesmo
 Spring Boot, sem depender da geração implícita do Spring Security.
 
-O painel identifica a sessão, permite logout POST/CSRF, sinaliza 401 preservando
-rascunhos na aba e explica 403. ADMIN encontra **Operadores** no menu: cadastro,
+O painel identifica a sessão, permite logout POST/CSRF, sinaliza 401 ocultando os
+dados e preservando rascunhos na memória da aba, e explica 403. ADMIN encontra **Operadores** no menu: cadastro,
 papel, ativação e redefinição de senha. Não há cadastro público nem conta padrão.
 Redefinição invalida sessões anteriores na próxima requisição. O administrador
 entrega a nova senha por canal seguro; não há envio automático de credenciais.
@@ -180,7 +190,7 @@ Etapa E-mail permanece independente: nenhum SMTP real é ativado por login.
 1. Selecionar uma máquina central e conta de serviço; provisionar Java 25, disco,
    diretórios privados do H2/acervo e raiz de exportação externa e separada.
 2. Empacotar com Maven em diretório externo. Não sobrepor estáticos novos a JAR antigo.
-3. Conferir versão de **cada** banco. O código requer V14. Uma base V11 não pode ser
+3. Conferir versão de **cada** banco. O código requer V15. Uma base V11 não pode ser
    iniciada com este código antes da migração offline autorizada, seguindo inventário,
    backup verificado e manutenção descritos em `etapa4-banco-migracoes.md`.
 4. Configurar externamente URL JDBC privada com IFEXISTS/WRITE_DELAY=0, caminhos,
@@ -227,7 +237,7 @@ Esse trecho não é uma instalação pronta: URL JDBC externa com `IFEXISTS=TRUE
 `WRITE_DELAY=0`, credenciais, acervo, raiz de exportação, conta inicial, proxy e
 certificado precisam ser provisionados pela equipe. Não copiar H2 aberto nem
 liberar o console para conferir versão. Com backend parado, ler o histórico via
-conexão offline autorizada/somente leitura, verificando sucesso e versão V14:
+conexão offline autorizada/somente leitura, verificando sucesso e versão V15:
 
 ```sql
 SELECT "version", "description", "success"
@@ -254,13 +264,13 @@ No aceite da instalação central, registrar evidências privadas de:
    aguardar término das requisições e do processo antes de backup/substituição do JAR.
    Ajustar o prazo de shutdown à operação e à infraestrutura; não matar processos
    Java desconhecidos nem presumir cancelamento por fechar a aba.
-6. Reinício controlado com a mesma base V14/acervo e Flyway desligado, conferindo
+6. Reinício controlado com a mesma base V15/acervo e Flyway desligado, conferindo
    registros e resultados desconhecidos sem repetir operações automaticamente.
 
 Destino/frequência/responsável/retenção de backup e janela de parada precisam ser
 definidos pela empresa; não há agendamento ou exclusão automática nesta revisão.
 As evidências de backup criado, integridade verificada e restauração testada são
-[separadas](etapa4-banco-migracoes.md#evidências-separadas-e-teste-v14--09112026).
+[separadas](etapa4-banco-migracoes.md#evidências-separadas-e-teste-v15--09112026).
 
 ## Verificação da entrega
 

@@ -1,5 +1,10 @@
 # Teste manual de Gmail com XML sintético
 
+**Documento histórico da CLI.** Para a conta configurável por ADMIN e o teste
+do painel **sem anexos fiscais**, consulte [Gmail configurável V15](gmail-configuravel.md).
+As autorizações e resultados históricos a seguir não autorizam envio externo em
+uma tarefa posterior. A [revisão atual](revisao-equipe-v15.md) não enviou mensagens.
+
 O teste real foi autorizado pelo usuário para um remetente e um destinatário
 de teste definidos nas configurações do ambiente. Os endereços não são gravados
 no código nem em cadastros operacionais. O teste não usa documentos reais.

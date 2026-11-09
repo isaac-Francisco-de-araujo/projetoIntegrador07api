@@ -7,7 +7,7 @@ os arquivos por viagem, associar faturas, conferir informações e acompanhar te
 de envio de e-mail. Backend, API REST e frontend são distribuídos na mesma aplicação
 Spring Boot.
 
-**Estado documentado:** novembro de 2026 · Java 25 · Spring Boot 3.5.6 · código requer esquema de banco **V14**.
+**Estado documentado:** novembro de 2026 · Java 25 · Spring Boot 3.5.6 · código requer esquema de banco **V15**.
 O modo padrão de e-mail é **SIMULADO**. O adaptador SMTP real existe no código e depende
 de ativação/configuração explícitas e homologação operacional.
 
@@ -35,7 +35,7 @@ ZIP são manuais, e o CT-e de um PDF é identificado abrindo o documento.
 
 A [visão geral do sistema](docs/visao-geral-do-sistema.md), também disponível em
 [PDF](docs/visao-geral-do-sistema.pdf) e [Word](docs/visao-geral-do-sistema.docx),
-preserva o levantamento de **21/10/2026** e seus diagramas. Para o estado atual V14,
+preserva o levantamento de **21/10/2026** e seus diagramas. Para o estado atual V15,
 consulte este README e os contratos de uso compartilhado e da Etapa E-mail.
 
 ## Sumário
@@ -64,6 +64,36 @@ consulte este README e os contratos de uso compartilhado e da Etapa E-mail.
 - [Documentação complementar](#documentação-complementar)
 
 ## Atualizações da versão atual
+
+### Revisão final para equipe e Gmail — 09/11/2026
+
+A implementação local de conta administrativa de teste foi integrada e corrigida:
+Gmail configurável por ADMIN, credenciais externas, teste sintético sem anexos fiscais
+e confirmação específica. O envio documental ao cliente e o canal Microsoft continuam
+independentes. Salvar endereço não autentica a conta; o padrão é sem envio.
+
+Corrigidos o erro 500 na última verificação, a identificação da conta no histórico
+e a recuperação do formulário após falha de consulta. Conferências documentais novas
+preservam remetente, assunto e mensagem efetivamente usados; faturas compartilhadas
+exigem conferência explícita na interface. Não houve envio externo.
+
+Consulte o [acompanhamento e aceite desta revisão](docs/revisao-equipe-v15.md),
+o [contrato Gmail seguro](docs/gmail-configuravel.md) e o
+[procedimento centralizado](docs/uso-compartilhado.md#implantação-centralizada).
+Resultados anteriores abaixo conservam sua data/versão; não representam o aceite V15.
+
+**Aceite V15:** 402 testes JUnit contabilizados, **401 aprovados**, zero falhas/erros,
+1 ignorado por privilégio de symlink no Windows. Navegador: entrada 8 grupos,
+uso diário 16, uso compartilhado 10, arquivos/PDFs 10 e zoom real 100/150/200%,
+sem erros JavaScript. Capturas e resultados externos estão no acompanhamento.
+
+### Apresentação pública antes do login — 09/11/2026
+
+O acesso inicial agora segue **apresentação (`/`) → Entrar → login (`/login`) →
+painel (`/painel`)**. A apresentação é leve e não consulta dados operacionais.
+Sessão válida entra diretamente no painel; `/index.html` e favoritos `/#aba`
+permanecem compatíveis. Login, operadores, papéis e CSRF reutilizam os mecanismos
+existentes. [Rotas, reprodução HTTPS protegida, testes e capturas](docs/acesso-apresentacao-login-painel.md).
 
 ### Revisão de pendências e preparação operacional — 09/11/2026
 
@@ -298,7 +328,7 @@ Novas telas: `/#fila`, `/#busca`, `/#saude` e `/#administracao` (ADMIN).
 | **Spring Data JPA / Hibernate** | Persistência e mapeamento das entidades |
 | **Spring JDBC / JdbcTemplate** | Consultas operacionais, histórico, auditoria e coordenação de operações |
 | **H2 Database** | Banco relacional em arquivo; bases em memória nos testes |
-| **Flyway** | Evolução versionada do banco, atualmente até V14 |
+| **Flyway** | Evolução versionada do banco, atualmente até V15 |
 | **Spring Security** | Autenticação, autorização por papel, sessões e CSRF |
 | **BCrypt** | Hash das senhas de operadores |
 | **Jakarta Validation** | Validação dos contratos de entrada |
@@ -538,7 +568,7 @@ Uma aplicação central atende os navegadores de todos os PCs. Somente o backend
 acessa o H2 e o acervo; não compartilhe o arquivo do banco entre computadores.
 
 1. O administrador prepara a aplicação central com perfil `operacao`, HTTPS e
-   banco V14, seguindo a manutenção autorizada para bases existentes.
+   banco V15, seguindo a manutenção autorizada para bases existentes.
 2. O primeiro ADMIN utiliza o bootstrap seguro já existente. As demais contas são
    cadastradas em **Operadores**, com papel CONSULTA, OPERADOR ou ADMIN.
 3. Cada pessoa entra em `/login` com sua conta e acompanha seus itens na **Fila
@@ -562,8 +592,9 @@ servidor, siga primeiro [Como executar localmente](#como-executar-localmente).
 
 1. Com a aplicação em execução local, abra **http://localhost:8080** no navegador.
    Em uma implantação configurada, utilize o endereço fornecido pelo responsável.
-2. Aguarde o carregamento da sessão e dos dados. **Pular abertura** reduz apenas
-   o tempo da apresentação, sem interromper as consultas necessárias.
+2. Na apresentação, clique em **Entrar**. Em operação, autentique-se com sua conta;
+   em desenvolvimento isolado, use **Abrir painel local**. No painel, o carregamento
+   interno verifica sessão e versão sem espera mínima artificial.
 3. Na **Visão geral**, consulte os indicadores, as últimas viagens e os atalhos.
 4. Use o menu lateral para trocar de tela. No celular, abra o botão de menu.
    A central de atalhos também pode ser aberta com **Ctrl+K / Cmd+K**.
@@ -845,7 +876,7 @@ Contrato, localização, recuperação de pasta, testes e limitações em
 
 ## Banco de dados e armazenamento
 
-### Esquema exigido pelo código atual: V14
+### Esquema exigido pelo código atual: V15
 
 | Migração | Finalidade |
 | --- | --- |
@@ -863,9 +894,10 @@ Contrato, localização, recuperação de pasta, testes e limitações em
 | V12 | Versão otimista de operadores |
 | V13 | Responsabilidade e eventos auditados da fila, sem duplicar históricos técnicos |
 | V14 | Índices de paginação e consultas compartilhadas |
+| V15 | Preferências administrativas da conta de teste de e-mail, sem senhas ou tokens |
 
 A aplicação valida o esquema com `spring.jpa.hibernate.ddl-auto=validate` e exige
-histórico Flyway até V14. As exclusões de ZIP reutilizam colunas existentes de
+histórico Flyway até V15. As exclusões de ZIP reutilizam colunas existentes de
 arquivamento e não acrescentaram migração.
 
 Migrações automáticas ficam desativadas por padrão. Bancos existentes precisam
@@ -920,6 +952,11 @@ usa cookie `Secure` e requer configuração de HTTPS compatível com a implanta�
 [registro histórico da modernização](docs/modernizacao-frontend.md) foi superado
 no código atual. Veja [uso compartilhado](docs/uso-compartilhado.md) para contratos,
 permissões, limitações e roteiro com dois operadores.
+
+`GET /` é público e não inicializa o painel. O login válido redireciona para
+`/painel`, protegido no perfil operacional. Consulte
+[apresentação, acesso e sessão](docs/acesso-apresentacao-login-painel.md) para
+compatibilidade dos favoritos, logout, expiração e teste HTTPS isolado com context path.
 
 ## Como executar localmente
 
@@ -1043,7 +1080,7 @@ fracionários em campos inteiros, para manter os contratos de entrada explícito
 
 ### Como usar a nova aba
 
-1. Prepare um banco **V14** e abra **Configurações** (`/#configuracoes`). A migração
+1. Prepare um banco **V15** e abra **Configurações** (`/painel#configuracoes`). A migração
    do banco em uso não foi executada nesta entrega e exige autorização específica.
 2. Informe o **remetente da operação**, correspondente à conta Outlook que recebe
    os ZIPs. Salvar o endereço não configura senha nem autenticação SMTP.
@@ -1357,9 +1394,9 @@ do repositório. Em Linux, a instalação do Chromium pode exigir `--with-deps`,
 no workflow. Os scripts Python `testar-painel.py` e `testar-pacotes.py` conservam
 verificações de etapas anteriores; a navegação atual é exercitada pelos scripts Node.
 
-### Resultados atuais — uso compartilhado V14
+### Resultados históricos — uso compartilhado V14
 
-Última execução completa: **387 testes contabilizados, 386 aprovados, zero
+Execução completa daquela etapa: **387 testes contabilizados, 386 aprovados, zero
 falhas/erros e 1 ignorado** (symlink no Windows). Inclui login, CSRF, permissões,
 revogação de sessões, último ADMIN em concorrência, conflito de edição, atribuição
 atômica, filtros/paginação e verificações independentes de saúde.
@@ -1437,7 +1474,7 @@ navegador foi concluído na evolução V14; resultados atuais em
 ## Limitações e próximos passos
 
 1. **Homologação documental Microsoft:** confirmar plataforma/tenant/políticas da caixa Outlook da empresa, autorizar OAuth2 restrito a envio, fornecer/renovar token externo e aprovar remetente/destinatário/conteúdo/anexos de um teste específico. Confirmação ao motorista é opcional; não é requisito comercial.
-2. **Implantação no ambiente de uso:** verificar separadamente o esquema V14 do banco e o acesso à pasta externa; migração operacional exige autorização e backup verificado.
+2. **Implantação no ambiente de uso:** verificar separadamente o esquema V15 do banco e o acesso à pasta externa; migração operacional exige autorização e backup verificado.
 3. **Documentos recentes globais:** dependem de consulta unificada com tipo, viagem, data de processamento e estado; esses metadados não estão completos nos DTOs atuais.
 4. **Escala das consultas:** paginação/filtros/ordenação estão no servidor; busca de substring ainda pode exigir varredura SQL. Seletores são limitados e permitem pesquisa explícita.
 5. **Evidência de backup:** manifesto não comprova por si só verificação ou restauração testada; o painel mantém estados não verificados quando falta evidência confiável.
@@ -1454,7 +1491,9 @@ descritos neste README e nos contratos específicos.
 | Documento | Assunto |
 | --- | --- |
 | [Revisão operacional — 09/11/2026](docs/revisao-operacional-20261109.md) | Comparação Git, reprodução ZIP, correção do resumo documental, capturas, testes, instalação e pendências reais |
-| [Uso diário compartilhado](docs/uso-compartilhado.md) | Login, operadores, concorrência, fila, busca, saúde, contratos V14 e implantação centralizada |
+| [Uso diário compartilhado](docs/uso-compartilhado.md) | Login, operadores, concorrência, fila, busca, saúde, contratos e implantação centralizada V15 |
+| [Revisão para equipe V15](docs/revisao-equipe-v15.md) | Acompanhamento, causas comprovadas, testes e pendências externas |
+| [Gmail configurável](docs/gmail-configuravel.md) | Conta administrativa de teste, autenticação externa e confirmação sem anexos fiscais |
 | [Visão geral do sistema — 21/10/2026](docs/visao-geral-do-sistema.md) | Levantamento histórico e diagramas, também em PDF e Word |
 | [Etapa E-mail — confirmação ao motorista](docs/confirmacao-motorista.md) | Mensagem manual, Microsoft OAuth2, configuração segura, conferência, idempotência, reenvio, V11, testes e homologação pendente |
 | [Estabilização atual](docs/estabilizacao.md) | Causa reproduzida dos 404, versões, sidebar, pasta externa, suíte completa e roteiro de recuperação |

@@ -8,7 +8,9 @@ Os contratos e resultados históricos abaixo são preservados.
 **Evolução V10:** [Diagnóstico e Recuperação](diagnostico-recuperacao.md) amplia a
 exibição dos resultados, centraliza pendências e preserva cada tentativa de cópia.
 A recuperação da exportação apenas registra eventos; não executa seu transporte.
-O código atual exige V14, com migração operacional separadamente autorizada.
+O código atual exige V15, com migração operacional separadamente autorizada.
+Conta Gmail configurável e última verificação são descritas no
+[contrato administrativo V15](gmail-configuravel.md), independentes destes canais.
 
 **Etapa E-mail V11:** [Confirmação manual ao motorista](confirmacao-motorista.md)
 implementa conferência, correção de destinatário, tentativa idempotente e reenvio no

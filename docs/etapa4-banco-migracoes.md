@@ -1,7 +1,7 @@
 # Etapa 4 — Inventário, backup, migrações e concorrência
 
-**Código atual V14:** [uso compartilhado](uso-compartilhado.md). V12–V14 são novas
-migrações; o inventário inclui responsabilidades e seus eventos. Nenhuma base
+**Código atual V15:** [uso compartilhado](uso-compartilhado.md). V12–V15 acrescentam
+versões, responsabilidades, índices e conta de teste sem segredos; o inventário inclui essas tabelas. Nenhuma base
 operacional foi migrada nesta evolução. O restante registra as etapas anteriores.
 
 **Histórico V9–V10.** A [configuração, exportação e notificações](configuracoes-exportacao-notificacoes.md)
@@ -56,8 +56,9 @@ verificado se houver registros, mesmo que alguém force um baseline externo.
 | V12 | Versionamento de operadores |
 | V13 | Responsabilidade de trabalho e seus eventos |
 | V14 | Índices das consultas compartilhadas |
+| V15 | Preferências da conta administrativa de teste de e-mail, sem credenciais |
 
-A versão atual exige V14. O inventário/fingerprint/backup inclui também as tabelas
+A versão atual exige V15. O inventário/fingerprint/backup inclui `conta_teste_email` e também as tabelas
 `conferencias_email` e `tentativas_email`, preservando destinatário, seleção e
 resultados das tentativas. Veja [o fluxo simulado e os estados](envio-manual.md).
 Inclui ainda configuração da operação e históricos V9. Cópias na raiz externa
@@ -142,7 +143,7 @@ no banco são preservados: restauração para outro caminho exige um plano expl�
 de remapeamento, não uma substituição automática. Não sobrescreva o banco atual
 como primeira tentativa de restauração.
 
-### Evidências separadas e teste V14 — 09/11/2026
+### Evidências separadas e teste V15 — 09/11/2026
 
 Reutilizados `ManutencaoBanco` (CLI offline), `BackupBanco` e `InventarioBanco`.
 Não há mecanismo paralelo, endpoint de restauração, política de retenção ou tarefa
@@ -157,13 +158,13 @@ pelos testes. Nenhuma ferramenta operacional foi executada contra a base real.
 | Integridade verificada | Resultado da verificação do ZIP e SHA-256 dos arquivos; inventário e cobertura da raiz | Não comprova abertura/uso de uma restauração nem recupera arquivos fora da raiz |
 | Restauração testada | Data, destino vazio isolado, versão H2/esquema, registros/vínculos/históricos/bytes comparados e responsável | Não valida uma instalação distinta ou uma política de recuperação da empresa |
 
-O teste `MigracaoEBackupTest.backupV14RestauraBancoXmlPdfEHistoricoSemUsarOsOriginais`
-cria base e acervo sintéticos, verifica V14 e usa a CLI offline de backup existente.
+O teste `MigracaoEBackupTest.backupV15RestauraBancoXmlPdfContaTesteEHistoricoSemUsarOsOriginais`
+amplia o cenário anterior V14: cria base e acervo sintéticos, verifica V15 e usa a CLI offline de backup existente.
 Depois verifica novamente o snapshot, retira os originais do caminho registrado,
 copia XML/PDF do backup para uma raiz vazia no mesmo caminho **apenas dentro do
 diretório temporário**, extrai um único banco H2 para outra base, abre em somente
 leitura e compara a impressão completa do inventário, os bytes, o vínculo da
-fatura e a tentativa `DESCONHECIDO`. Assim o teste não passa lendo originais que
+fatura, a conta Gmail de teste sem segredos e a tentativa `DESCONHECIDO`. Assim o teste não passa lendo originais que
 ainda estivessem disponíveis. O caso antigo de corrupção de cópia continua exigindo
 recusa. Fixtures não são documentos fiscais e não homologam PDFs reais.
 

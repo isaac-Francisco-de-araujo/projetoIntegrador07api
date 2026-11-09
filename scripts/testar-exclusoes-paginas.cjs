@@ -24,7 +24,7 @@ async function run(){
   async function navegar(id){await page.evaluate(hash=>{location.hash=hash;},id);await page.waitForFunction(route=>document.querySelector('main').dataset.paginaAtual===route,alias[id]||id);}
   async function get(route){const response=await page.request.get(url+route);assert.equal(response.status(),200);return response.json();}
   async function estabilizar(){await page.waitForFunction(()=>!document.getElementById('atualizar').disabled&&document.getElementById('form-pacote').getAttribute('aria-busy')==='false');}
-  await page.goto(url,{waitUntil:'networkidle'});await page.locator('#abertura').waitFor({state:'hidden'});
+   await page.goto(url+'/painel',{waitUntil:'networkidle'});await page.locator('#abertura').waitFor({state:'hidden'});
   for(const route of routes){
     await page.locator(`.sidebar nav a[href="#${route}"]`).click();
     const visible=await page.locator('main [data-pagina]').evaluateAll(items=>[...new Set(items.filter(e=>!e.hidden&&e.getClientRects().length).map(e=>e.dataset.pagina))]);

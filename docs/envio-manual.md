@@ -1,5 +1,18 @@
 # Envio manual auditável em SIMULAÇÃO
 
+**Estado atual V15 (09/11/2026):** conferências documentais novas preservam
+`snapshot.versao=2`, remetente externo efetivo, assunto e mensagem junto da seleção
+e hashes. O mesmo assunto/texto compõe o MIME. A prévia e os detalhes do histórico
+mostram esses campos; registros antigos continuam legíveis e identificam conteúdo
+não registrado, sem reconstruí-lo como se fosse comprovado. Uma conferência antiga
+incompatível exige nova revisão, sem alterar tentativas já persistidas.
+
+Fatura com várias viagens mostra aviso e confirmação explícita para o documento
+integral, inclusive quando possa conter informações de outros clientes. Os vínculos
+não autorizam distribuição automática; a regra comercial entre clientes continua
+dependendo da empresa. Não há destinatários deduzidos ou envio às outras viagens.
+Gmail **de testes** é [administrativo e independente](gmail-configuravel.md).
+
 ## Regra atual: envio documental ao cliente — 09/11/2026
 
 O destinatário comercial é o **cliente**. O remetente é a conta Outlook da empresa;
@@ -22,7 +35,7 @@ Teste sem envio, aceite do provedor (sem comprovar entrega/leitura), falha conhe
 e resultado desconhecido. Configuração salva e teste local não autenticam a conta.
 
 Os capítulos V7 seguintes são históricos. O adaptador real **já existe** em
-`TransporteSmtp`/`ConfiguracaoSmtp`; o código atual exige V14. Nenhum transporte real
+`TransporteSmtp`/`ConfiguracaoSmtp`; o código atual exige V15. Nenhum transporte real
 foi ativado ou chamado nesta revisão. As APIs de teste e os registros anteriores
 permanecem, com idempotência, snapshot, associação explícita e controle de acesso.
 
