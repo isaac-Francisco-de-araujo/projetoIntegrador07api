@@ -31,6 +31,7 @@ public class EnvioManualService {
     private final TransporteEmail transporte;
     private final TransactionTemplate tx;
     private final String modo;
+    @Value("${rotabrasil.email.smtp.remetente:}") private String remetente="";
 
     public EnvioManualService(JdbcTemplate jdbc, ObjectMapper json, PreparacaoEnvioService preparacao,
             EmailService email, ViagemService viagens, CoordenacaoImportacaoService coordenacao,
@@ -75,7 +76,7 @@ public class EnvioManualService {
             var d=previa.anexos().stream().filter(v->v.id().equals(a.id())).findFirst().orElseThrow();
             return new Arquivo(a.origem(),a.id(),a.nome(),d.tipo(),d.finalidade().name(),d.viagemIds(),a.sha256(),a.tamanho());
         }).toList();
-        return new Snapshot(mensagem.viagemId(),viagens.buscarViagem(mensagem.viagemId()).getNumero(),mensagem.destinatario(),arquivos);
+        return new Snapshot(2,mensagem.viagemId(),viagens.buscarViagem(mensagem.viagemId()).getNumero(),mensagem.destinatario(),arquivos,remetente.isBlank()?null:remetente,mensagem.assunto(),mensagem.texto());
     }
 
     private record Reserva(Tentativa tentativa, MensagemPreparada mensagem) {}

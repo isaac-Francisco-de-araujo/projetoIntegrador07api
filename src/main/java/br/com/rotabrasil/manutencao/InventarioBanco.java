@@ -24,7 +24,7 @@ public final class InventarioBanco {
     public Relatorio analisar(Connection conexao) throws Exception {
         var achados = new ArrayList<Achado>();
         var dados = new LinkedHashMap<String, List<Map<String, String>>>();
-        for (String tabela : List.of("clientes", "viagens", "documentos", "envios", "pacotes", "anexos", "pacote_documentos", "anexo_viagens", "conferencias_email", "tentativas_email", "usuarios", "auditoria", "processamentos", "configuracao_operacao", "testes_configuracao", "recebimentos", "notificacoes_recebimento", "conferencias_notificacao", "exportacoes", "exportacao_arquivos", "responsabilidades", "eventos_responsabilidade")) {
+        for (String tabela : List.of("clientes", "viagens", "documentos", "envios", "pacotes", "anexos", "pacote_documentos", "anexo_viagens", "conferencias_email", "tentativas_email", "usuarios", "auditoria", "processamentos", "configuracao_operacao", "conta_teste_email", "testes_configuracao", "recebimentos", "notificacoes_recebimento", "conferencias_notificacao", "exportacoes", "exportacao_arquivos", "responsabilidades", "eventos_responsabilidade")) {
             if (!List.of("clientes", "viagens", "documentos", "envios").contains(tabela)) {
                 try (var rs = conexao.getMetaData().getTables(null,"PUBLIC",tabela.toUpperCase(Locale.ROOT),new String[]{"TABLE"})) {
                     if (!rs.next()) continue;

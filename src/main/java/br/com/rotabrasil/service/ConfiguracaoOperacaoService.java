@@ -15,10 +15,10 @@ import java.util.*;
 public class ConfiguracaoOperacaoService {
     private final JdbcTemplate jdbc;private final CoordenacaoImportacaoService coordenacao;
     private final DestinoExportacaoService destinos;private final ObjectMapper json;
-    private final String modo,remetenteSmtp;private final ConfiguracaoNotificacoes canal;
+    private final String modo,remetenteSmtp;private final ConfiguracaoNotificacoes canal;private final ContaTesteEmailService contaTeste;
     public ConfiguracaoOperacaoService(JdbcTemplate jdbc,CoordenacaoImportacaoService coordenacao,DestinoExportacaoService destinos,ObjectMapper json,
-            @Value("${rotabrasil.email.modo:SIMULADO}") String modo,@Value("${rotabrasil.email.smtp.remetente:}") String remetenteSmtp,ConfiguracaoNotificacoes canal){
-        this.jdbc=jdbc;this.coordenacao=coordenacao;this.destinos=destinos;this.json=json;this.modo=modo;this.remetenteSmtp=remetenteSmtp;this.canal=canal;
+            @Value("${rotabrasil.email.modo:SIMULADO}") String modo,@Value("${rotabrasil.email.smtp.remetente:}") String remetenteSmtp,ConfiguracaoNotificacoes canal,ContaTesteEmailService contaTeste){
+        this.jdbc=jdbc;this.coordenacao=coordenacao;this.destinos=destinos;this.json=json;this.modo=modo;this.remetenteSmtp=remetenteSmtp;this.canal=canal;this.contaTeste=contaTeste;
     }
     public Configuracao consultar(){
         return jdbc.queryForObject("SELECT * FROM configuracao_operacao WHERE id=1",(rs,n)->{
@@ -59,11 +59,11 @@ public class ConfiguracaoOperacaoService {
         coordenacao.bloquear();String id=pedido.id().toString();
         var anterior=jdbc.query("SELECT * FROM testes_configuracao WHERE id=?",this::teste,id);
         if(!anterior.isEmpty())return anterior.getFirst();
-        var c=consultar();if(c.remetente()==null)throw new ArquivoInvalidoException("Salve o remetente da operação antes de simular");
+        var c=consultar();String remetente=contaTeste.gmail()?contaTeste.consultar().remetente():c.remetente();if(remetente==null)throw new ArquivoInvalidoException("Salve o remetente da conta antes do teste sem envio");
         validarEmail(pedido.destinatario());
-        var mensagem=new MensagemNotificacao(c.remetente(),pedido.destinatario(),"Teste simulado RotaBrasil","Teste de configuração; nenhum arquivo recebido ou importado por este teste. Referência: "+id);
+        var mensagem=new MensagemNotificacao(remetente,pedido.destinatario(),"Teste sem envio RotaBrasil","Teste de configuração; nenhum arquivo recebido ou importado por este teste. Referência: "+id);
         new TransporteEmailSimulado().enviarNotificacao(mensagem);
-        return registrarTeste(id,"EMAIL",escrever(Map.of("configuracao",c,"destinatario",pedido.destinatario())),"SIMULADO","Simulação registrada. Nenhuma conexão SMTP ou mensagem real; autenticação Outlook não foi testada.");
+        return registrarTeste(id,"EMAIL",escrever(Map.of("configuracao",c,"contaTeste",contaTeste.consultar(),"destinatario",pedido.destinatario())),"SIMULADO","Teste sem envio registrado. Nenhuma conexão SMTP; autenticação e entrega não verificadas.");
     }
     private Teste registrarTeste(String id,String tipo,String snapshot,String situacao,String mensagem){
         jdbc.update("INSERT INTO testes_configuracao VALUES(?,?,?,?,?,CURRENT_TIMESTAMP)",id,tipo,snapshot,situacao,mensagem);

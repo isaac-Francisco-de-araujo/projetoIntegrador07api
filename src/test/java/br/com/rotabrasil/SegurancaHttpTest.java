@@ -69,6 +69,7 @@ class SegurancaHttpTest {
         mvc.perform(get("/rota/login").contextPath("/rota").session(login("operador"))).andExpect(redirectedUrl("/rota/painel"));
     }
     @Test void loginSemCsrfRecusadoEUsuarioNaoAdminNaoCadastra()throws Exception{
+        mvc.perform(post("/api/pacotes/inspecao")).andExpect(status().isUnauthorized()).andExpect(content().contentTypeCompatibleWith("application/json"));
         mvc.perform(post("/login").param("username","operador").param("password",SENHA)).andExpect(status().isForbidden());
         for(String usuario:new String[]{"leitor","operador"})mvc.perform(post("/api/admin/usuarios").session(login(usuario)).with(csrf())
             .contentType("application/json").content("{\"usuario\":\"negado\",\"senha\":\"SenhaSinteticaNova12!\",\"papel\":\"ADMIN\"}"))

@@ -7,7 +7,7 @@
 - Build limpo externo: `mvn -B -Drotabrasil.build.directory=<diretorio-temporario> clean test`.
 - `desenvolvimento`: loopback, sem autenticação, apenas para dados isolados.
 - `operacao`: autenticação/permissões, H2 Console desligado; manter migrações automáticas desativadas.
-- Código atual exige esquema V14 (V12 versão de operadores, V13 responsabilidade de trabalho, V14 índices de busca; preserva V11 da confirmação ao motorista). Verifique separadamente a versão de cada banco. Mudanças usam migração nova; não editar migrações publicadas, clean, repair ou ddl-auto=update.
+- Código atual exige esquema V15 (conta administrativa de teste sem segredos; V12 versão de operadores, V13 responsabilidade de trabalho, V14 índices de busca; preserva V11 da confirmação ao motorista). Verifique separadamente a versão de cada banco. Mudanças usam migração nova; não editar migrações publicadas, clean, repair ou ddl-auto=update.
 - Não migrar banco operacional sem autorização específica e backup verificado.
 - PDFs têm conferência de cabeçalho, não validação estrutural/fiscal. Não inferir vínculos ou destinatários.
 - Preservar idempotência, SHA-256, confirmação explícita e estado desconhecido; não repetir automaticamente.

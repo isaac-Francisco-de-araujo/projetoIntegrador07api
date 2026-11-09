@@ -18,8 +18,9 @@ public class NotificacaoRecebimentoService {
     private final JdbcTemplate jdbc;private final ConfiguracaoOperacaoService config;
     private final CoordenacaoImportacaoService coordenacao;private final TransactionTemplate tx;private final ConfiguracaoNotificacoes canal;
     private final com.fasterxml.jackson.databind.ObjectMapper json;
-    public NotificacaoRecebimentoService(JdbcTemplate jdbc,ConfiguracaoOperacaoService config,CoordenacaoImportacaoService coordenacao,PlatformTransactionManager manager,ConfiguracaoNotificacoes canal,com.fasterxml.jackson.databind.ObjectMapper json){
-        this.jdbc=jdbc;this.config=config;this.coordenacao=coordenacao;this.canal=canal;this.json=json;tx=new TransactionTemplate(manager);
+    private final ContaTesteEmailService contaTeste;
+    public NotificacaoRecebimentoService(JdbcTemplate jdbc,ConfiguracaoOperacaoService config,CoordenacaoImportacaoService coordenacao,PlatformTransactionManager manager,ConfiguracaoNotificacoes canal,com.fasterxml.jackson.databind.ObjectMapper json,ContaTesteEmailService contaTeste){
+        this.jdbc=jdbc;this.config=config;this.coordenacao=coordenacao;this.canal=canal;this.json=json;this.contaTeste=contaTeste;tx=new TransactionTemplate(manager);
         tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);tx.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
     }
     public String receber(MultipartFile arquivo,String destinatario,boolean simular){
@@ -116,7 +117,8 @@ public class NotificacaoRecebimentoService {
     }
     private Snapshot snapshot(String id,String destinatario,boolean teste){
         ConfiguracaoOperacaoService.validarEmail(destinatario);var c=config.consultar();
-        if(c.remetente()==null)throw new ArquivoInvalidoException("Salve a conta remetente antes de conferir a confirmação");
+        boolean gmail=teste&&contaTeste.gmail();String remetente=gmail?contaTeste.consultar().remetente():c.remetente();
+        if(remetente==null)throw new ArquivoInvalidoException("Salve a conta remetente antes de conferir a confirmação");
         String pacote="TESTE SINTÉTICO",estado="TESTE_SEM_DOCUMENTOS",contexto="TESTE";Long pacoteId=null;long revisao=0;
         if(!teste){
             var r=registro(id);revisao=((Number)r.get("REVISAO_DESTINATARIO")).longValue();pacote=nomeSeguro((String)r.get("NOME_ARQUIVO"));
@@ -140,7 +142,7 @@ public class NotificacaoRecebimentoService {
             default -> "Os arquivos foram recebidos. A conferência e o processamento ainda não foram concluídos.";
         };
         mensagem+="\nEsta confirmação não comprova entrega ou leitura de e-mail. Sem documentos fiscais anexados.";
-        return new Snapshot(c.remetente(),destinatario,assunto,mensagem,canal.modo(),c.versao(),canal.assinatura(),id,pacote,pacoteId,estado,revisao,ConteudoXml.sha256(contexto.getBytes(java.nio.charset.StandardCharsets.UTF_8)),teste);
+        return new Snapshot(remetente,destinatario,assunto,mensagem,gmail?contaTeste.consultar().modo():canal.modo(),c.versao(),gmail?contaTeste.assinatura():canal.assinatura(),id,pacote,pacoteId,estado,revisao,ConteudoXml.sha256(contexto.getBytes(java.nio.charset.StandardCharsets.UTF_8)),teste);
     }
     public Conferencia conferir(String id,Conferir pedido){
         return tx.execute(status->{
@@ -152,9 +154,9 @@ public class NotificacaoRecebimentoService {
         });
     }
     public Conferencia conferirTeste(Conferir pedido){
-        if(!canal.modo().equals("REAL"))throw new ConflitoRecursoException("Teste real desativado; use o teste simulado ou configure explicitamente REAL");
+        if(!(contaTeste.gmail()?contaTeste.consultar().modo():canal.modo()).equals("REAL"))throw new ConflitoRecursoException("Teste real desativado; use o teste sem envio ou configure explicitamente REAL");
         if(pedido.anteriorId()!=null)throw new ArquivoInvalidoException("Teste de configuração não é reenvio de recebimento");
-        return tx.execute(status->{coordenacao.bloquear();var s=snapshot(null,pedido.destinatario(),true);canal.validar(s.remetente());return gravarConferencia(null,null,s);});
+        return tx.execute(status->{coordenacao.bloquear();var s=snapshot(null,pedido.destinatario(),true);validarCanal(s);return gravarConferencia(null,null,s);});
     }
     private Conferencia gravarConferencia(String id,String anterior,Snapshot s){
         String uuid=UUID.randomUUID().toString();var expira=OffsetDateTime.now(java.time.ZoneOffset.UTC).plusMinutes(30);
@@ -165,7 +167,7 @@ public class NotificacaoRecebimentoService {
         var r=jdbc.queryForList("SELECT * FROM conferencias_notificacao WHERE id=?",id);if(r.isEmpty())throw new RecursoNaoEncontradoException("Conferência não encontrada");var c=r.getFirst();
         return new Conferencia(id,(String)c.get("ANTERIOR_ID"),(OffsetDateTime)c.get("EXPIRA_EM"),lerSnapshot((String)c.get("SNAPSHOT")));
     }
-    private record Reserva(String id,Snapshot snapshot){}
+    private record Reserva(String id,Snapshot snapshot,boolean gmail){}
     @org.springframework.transaction.annotation.Transactional(propagation=org.springframework.transaction.annotation.Propagation.NEVER)
     public Notificacao confirmar(String recebimento,br.com.rotabrasil.dto.ConfirmacaoRecebimentoDtos.Confirmar pedido){
         String id=executar(recebimento,pedido,false);
@@ -184,23 +186,24 @@ public class NotificacaoRecebimentoService {
             var c=jdbc.queryForMap("SELECT ator FROM conferencias_notificacao WHERE id=?",conferencia);
             if(!Objects.equals(c.get("ATOR"),br.com.rotabrasil.seguranca.AtorAtual.nome()))throw new ConflitoRecursoException("Operador mudou; gere nova conferência");
             var existentes=teste?jdbc.queryForList("SELECT id FROM testes_configuracao WHERE id=?",String.class,conferencia):jdbc.queryForList("SELECT id FROM notificacoes_recebimento WHERE conferencia_id=?",String.class,conferencia);
-            if(!existentes.isEmpty())return new Reserva(existentes.getFirst(),null);
+            if(!existentes.isEmpty())return new Reserva(existentes.getFirst(),null,false);
             if(conf.expiraEm().isBefore(OffsetDateTime.now()))throw new ConflitoRecursoException("Conferência expirada; confira novamente");
             if(!teste){conferirAnterior(recebimento,conf.anteriorId());if(!Objects.equals(s.destinatario(),registro(recebimento).get("DESTINATARIO")))throw new ConflitoRecursoException("Destinatário alterado; confira novamente");}
             if(!s.equals(snapshot(recebimento,s.destinatario(),teste)))throw new ConflitoRecursoException("Configuração, seleção ou processamento mudou; confira novamente a mensagem");
-            canal.validar(s.remetente());String id=teste?conferencia:UUID.randomUUID().toString();
+            validarCanal(s);String id=teste?conferencia:UUID.randomUUID().toString();
             if(teste)jdbc.update("INSERT INTO testes_configuracao VALUES(?,'EMAIL_REAL',?,'DESCONHECIDO',?,CURRENT_TIMESTAMP)",id,config.escrever(s),"Resultado ainda não confirmado; não repetir automaticamente");
             else jdbc.update("INSERT INTO notificacoes_recebimento(id,recebimento_id,evento,chave_evento,referencia,remetente,destinatario,configuracao,assunto,mensagem,modo,situacao,criada_em,correlacao,conferencia_id,anterior_id,motivo,ator,snapshot) VALUES(?,?,'CONFIRMACAO_MOTORISTA',?,?,?,?,?,?,?,?, 'DESCONHECIDO',CURRENT_TIMESTAMP,?,?,?,?,?,?)",
                     id,recebimento,"confirmacao:"+conferencia,recebimento,s.remetente(),s.destinatario(),config.escrever(s),s.assunto(),s.mensagem(),s.modo(),org.slf4j.MDC.get("operacaoId"),conferencia,conf.anteriorId(),"Resultado ainda não confirmado; não repetir automaticamente",br.com.rotabrasil.seguranca.AtorAtual.nome(),config.escrever(s));
-            return new Reserva(id,s);
+            return new Reserva(id,s,teste&&contaTeste.gmail());
         });
         if(reserva.snapshot()==null)return reserva.id();
         // O commit conservador já terminou. Nenhuma transação de importação acompanha SMTP.
         var s=reserva.snapshot();TransporteEmail.Resultado resultado;
-        try{resultado=canal.enviar(new MensagemNotificacao(s.remetente(),s.destinatario(),s.assunto(),s.mensagem()));}catch(RuntimeException ex){resultado=TransporteEmail.Resultado.DESCONHECIDO;}
+        try{var mensagem=new MensagemNotificacao(s.remetente(),s.destinatario(),s.assunto(),s.mensagem());resultado=reserva.gmail()?contaTeste.enviar(mensagem):canal.enviar(mensagem);}catch(RuntimeException ex){resultado=TransporteEmail.Resultado.DESCONHECIDO;}
         String estado=resultado==TransporteEmail.Resultado.ACEITO?(s.modo().equals("REAL")?"ACEITO_SMTP":"SIMULADO"):resultado==TransporteEmail.Resultado.RECUSADO?"FALHA":"DESCONHECIDO";
         String motivo=switch(estado){case "ACEITO_SMTP"->"Servidor SMTP aceitou a mensagem; não comprova entrega ou leitura";case "SIMULADO"->"SIMULAÇÃO concluída; nenhum e-mail real enviado";case "FALHA"->"Transporte recusou a tentativa; nenhum aceite confirmado";default->"Resultado desconhecido; consulte o histórico antes de qualquer reenvio deliberado";};
         tx.executeWithoutResult(status->{if(teste)jdbc.update("UPDATE testes_configuracao SET situacao=?,mensagem=? WHERE id=?",estado,motivo,reserva.id());else jdbc.update("UPDATE notificacoes_recebimento SET situacao=?,motivo=?,concluida_em=CURRENT_TIMESTAMP WHERE id=?",estado,motivo,reserva.id());});
         return reserva.id();
     }
+    private void validarCanal(Snapshot s){if(s.teste()&&contaTeste.gmail())contaTeste.validar();else canal.validar(s.remetente());}
 }

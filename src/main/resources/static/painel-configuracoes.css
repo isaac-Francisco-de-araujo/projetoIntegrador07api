@@ -7,3 +7,7 @@
 .export-actions{display:flex;gap:.5rem;flex-wrap:wrap}.export-result{min-width:0;max-width:36rem}.settings-results .has-error{border-color:#c78165}
 @media(max-width:760px){.settings-grid{grid-template-columns:minmax(0,1fr)}.settings-upload input[type=email]{width:100%;box-sizing:border-box}}
 .settings-auth{display:grid;grid-template-columns:minmax(9rem,1fr) minmax(0,3fr);gap:.5rem 1rem;overflow-wrap:anywhere}.settings-auth dt{font-weight:600}.settings-auth dd{margin:0}@media(max-width:760px){.settings-auth{grid-template-columns:1fr}.settings-auth dd{margin-bottom:.8rem}}
+#campos-conta-teste{border:0;padding:0;margin:1rem 0;min-width:0}
+#campos-conta-teste label{display:block;margin:.8rem 0}
+#campos-conta-teste input,#campos-conta-teste select{display:block;width:100%;max-width:36rem;box-sizing:border-box;margin-top:.4rem}
+#config-conta-teste p,#conta-teste-ultima{overflow-wrap:anywhere}

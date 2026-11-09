@@ -60,8 +60,14 @@ class EnvioManualHttpTest {
     @Test void simulacaoAuditavelPreservaHistoricoMesmoComMudancasPosteriores() throws Exception {
         jdbc.update("INSERT INTO envios(viagem_id,cliente_id,status,mensagem) SELECT id,cliente_id,'ENVIADO','privado' FROM viagens WHERE id=?",viagem);
         var c=conferir(null);verifyNoInteractions(transporte);
+        assertThat(c.path("snapshot").path("versao").asInt()).isEqualTo(2);
+        assertThat(c.path("snapshot").path("assunto").asText()).contains("Documentos de viagem");
+        assertThat(c.path("snapshot").path("mensagem").asText()).contains("selecionados e conferidos manualmente");
         var r=confirmar(c.get("id").asText());assertThat(r.getStatusCode()).isEqualTo(HttpStatus.OK);
         var tentativa=r.getBody();assertThat(tentativa.get("situacao").asText()).isEqualTo("SIMULADO");
+        var enviada=org.mockito.ArgumentCaptor.forClass(MensagemPreparada.class);verify(transporte).enviar(enviada.capture());
+        assertThat(tentativa.path("snapshot").path("assunto").asText()).isEqualTo(enviada.getValue().assunto());
+        assertThat(tentativa.path("snapshot").path("mensagem").asText()).isEqualTo(enviada.getValue().texto());
         assertThat(tentativa.get("modo").asText()).isEqualTo("SIMULADO");assertThat(tentativa.get("motivo").asText()).contains("nenhum e-mail real");
         jdbc.update("UPDATE documentos SET nome_arquivo='corrigido.xml',arquivado_em=CURRENT_TIMESTAMP WHERE id=?",documento);
         jdbc.update("UPDATE clientes SET email='novo@example.invalid'");Files.delete(arquivo());

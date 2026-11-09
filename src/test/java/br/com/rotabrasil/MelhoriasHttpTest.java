@@ -100,7 +100,9 @@ class MelhoriasHttpTest {
         long viagem=r.get("viagemId").asLong();
         var conf=real.conferir(viagem,new br.com.rotabrasil.dto.EnvioManualDtos.Conferir(new br.com.rotabrasil.dto.PreviaEmailRequest("sintetico@example.invalid",List.of(r.get("documentoId").asLong())),null));
         var tentativa=real.confirmar(viagem,new br.com.rotabrasil.dto.EnvioManualDtos.Confirmar(conf.id(),true));
-        assertThat(tentativa.modo()).isEqualTo("REAL");assertThat(tentativa.situacao()).isEqualTo("ACEITO_SMTP");assertThat(tentativa.motivo()).contains("não comprova entrega ou leitura");assertThat(tentativa.snapshot().versao()).isEqualTo(1);
+        assertThat(tentativa.modo()).isEqualTo("REAL");assertThat(tentativa.situacao()).isEqualTo("ACEITO_SMTP");assertThat(tentativa.motivo()).contains("não comprova entrega ou leitura");assertThat(tentativa.snapshot().versao()).isEqualTo(2);
+        assertThat(tentativa.snapshot().assunto()).isEqualTo("Documentos de viagem - referência #"+viagem);
+        assertThat(tentativa.snapshot().mensagem()).contains("conferidos manualmente");
         real.confirmar(viagem,new br.com.rotabrasil.dto.EnvioManualDtos.Confirmar(conf.id(),true));org.mockito.Mockito.verify(transporte,org.mockito.Mockito.times(1)).enviar(org.mockito.ArgumentMatchers.any());
     }
 }

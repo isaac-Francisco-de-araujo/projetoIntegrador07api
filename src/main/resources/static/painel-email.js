@@ -21,11 +21,12 @@ $('form-email').addEventListener('submit',async event=>{
     const result=await api(`/api/viagens/${encodeURIComponent(trip)}/conferencias-email`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({selecao:{destinatario:$('destinatario').value.trim(),documentoIds:ids,anexoIds:[...state.anexosSelecionados]},anteriorId:anteriorEmail}),timeoutMs:30000});
     if(version!==previa||trip!==state.viagem)return;conferenciaEmail=result;
     const real=result.modo==='REAL',target=$('resultado-previa'),label=element('label'),check=element('input');check.type='checkbox';check.id='conferi-envio';
-    label.append(check,element('span',`${result.anteriorId?'Conferi e confirmo deliberadamente este REENVIO':'Conferi viagem, destinatário e anexos'} · ${real?'ENVIO REAL':'SIMULAÇÃO'}.`));
+    const compartilhada=result.snapshot.arquivos.some(a=>a.finalidade==='FATURA'&&a.viagemIds.length>1);
+    label.append(check,element('span',`${result.anteriorId?'Conferi e confirmo deliberadamente este REENVIO':'Conferi viagem, destinatário, mensagem e anexos'} · ${real?'ENVIO REAL':'Teste sem envio'}.${compartilhada?' Conferi que as faturas compartilhadas podem ser enviadas integralmente a este destinatário.':''}`));
     const button=element('button',real?(result.anteriorId?'Confirmar reenvio':'Confirmar envio'):'Envio não configurado','button primary');button.type='button';button.id='simular-envio';button.disabled=true;
     check.addEventListener('change',()=>{button.disabled=!real||!check.checked||tentativaOcupada;});
     button.addEventListener('click',()=>{if(check.checked&&conferenciaEmail?.id===result.id)executarConfirmacao(trip,result.id);});
-    target.replaceChildren(element('strong',`${real?'ENVIO REAL':'SIMULAÇÃO'} · arquivos conferidos no servidor`),element('p','Nenhum e-mail enviado nesta prévia.'),element('p',`CT-e ${result.snapshot.numero} · Viagem #${result.snapshot.viagemId}`),element('p',`Destinatário: ${result.snapshot.destinatario}`),listaSnapshot(result.snapshot),element('p','Fatura compartilhada será incluída uma vez nesta tentativa. Não haverá tentativas automáticas para outras viagens ou destinatários.'),label,button);target.hidden=false;
+    target.replaceChildren(element('strong',`${real?'ENVIO REAL':'Teste sem envio'} · arquivos conferidos no servidor`),element('p','Nenhum e-mail enviado nesta prévia.'),element('p',`CT-e ${result.snapshot.numero}`),element('p',`Remetente: ${result.snapshot.remetente||'não configurado'}`),element('p',`Destinatário: ${result.snapshot.destinatario}`),element('p',`Assunto: ${result.snapshot.assunto}`),element('pre',result.snapshot.mensagem,'mensagem-confirmacao'),listaSnapshot(result.snapshot),...(compartilhada?[element('p','⚠ Fatura compartilhada: pode conter informações de outros clientes. Confira o documento integral e a autorização antes de enviar; os vínculos não autorizam envio a todos.')]:[]),label,button);target.hidden=false;
   }catch(error){if(version===previa)avisar(error.message,true);}finally{state.previaOcupada=false;$('gerar-previa').textContent='Gerar prévia →';atualizarSelecao();}
 });
 export function renderizarTentativas(items){
@@ -35,6 +36,7 @@ export function renderizarTentativas(items){
     section.append(element('strong'),element('p',`${new Date(item.criadaEm).toLocaleString('pt-BR')} · CT-e ${item.snapshot.numero} · ${item.snapshot.destinatario}`));
     if(item.situacao==='FALHA'||item.situacao==='DESCONHECIDO')section.append(element('p',item.motivo),element('p',item.situacao==='DESCONHECIDO'?'Confira o resultado antes de preparar um reenvio. Não há repetição automática.':'Revise a causa e confira novamente antes de preparar um reenvio.'));
     const detalhes=element('details');detalhes.append(element('summary','Ver detalhes'),element('p',`Tentativa ${item.id} · ${item.modo} · ${item.situacao}`),listaSnapshot(item.snapshot));
+    detalhes.append(element('p',`Remetente: ${item.snapshot.remetente||'não registrado no histórico'}`),element('p',`Assunto: ${item.snapshot.assunto||'não registrado no histórico'}`),element('pre',item.snapshot.mensagem||'Texto não registrado neste histórico antigo.','mensagem-confirmacao'));
     if(item.situacao!=='FALHA'&&item.situacao!=='DESCONHECIDO')detalhes.append(element('p',item.motivo));
     if(item.anteriorId)detalhes.append(element('p',`Reenvio da tentativa ${item.anteriorId}`));
     section.append(detalhes);

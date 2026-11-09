@@ -49,7 +49,13 @@ public class SegurancaConfig {
                 // Selecionar por rota mantém a entrada existente e o contrato JSON da API.
                 .exceptionHandling(e->e.defaultAuthenticationEntryPointFor((req,res,ex)->{
                     res.setStatus(401);res.setContentType("application/json;charset=UTF-8");res.getWriter().write("{\"mensagem\":\"Sessão encerrada; entre novamente\"}");
-                },api).defaultAuthenticationEntryPointFor(new LoginUrlAuthenticationEntryPoint("/login"),new NegatedRequestMatcher(api)))
+                },api).defaultAuthenticationEntryPointFor(new LoginUrlAuthenticationEntryPoint("/login"),new NegatedRequestMatcher(api))
+                .accessDeniedHandler((req,res,ex)->{
+                    var auth=org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                    boolean semSessao=api.matches(req)&&(auth==null||!auth.isAuthenticated()||auth instanceof org.springframework.security.authentication.AnonymousAuthenticationToken);
+                    res.setStatus(semSessao?401:403);res.setContentType("application/json;charset=UTF-8");
+                    res.getWriter().write(semSessao?"{\"mensagem\":\"Sessão encerrada; entre novamente\"}":"{\"mensagem\":\"Acesso negado. Confira sua permissão e entre novamente se necessário.\"}");
+                }))
                 .build();
     }
 }

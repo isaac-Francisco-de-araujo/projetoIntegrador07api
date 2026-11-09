@@ -2,7 +2,7 @@
 <html lang="pt-BR" data-tema="escuro">
 <head>
   <meta charset="UTF-8">
-  <meta name="rotabrasil-versao" content="multioperador-V14-20261102">
+  <meta name="rotabrasil-versao" content="equipe-V15-20261109">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="RotaBrasil: sua central de documentos, viagens e envios. Tudo conectado, do primeiro arquivo à próxima entrega.">
   <meta name="theme-color" content="#101e2b">
@@ -170,8 +170,27 @@
         <section><h3>Cópia automática</h3><label class="archive-filter"><input id="config-auto-exportacao" type="checkbox"> Copiar após importar</label><p class="section-help">Copia novos pacotes para a pasta salva, preservando o acervo original.</p></section>
       </fieldset><button id="salvar-configuracoes" class="button primary" type="submit" disabled>Salvar alterações</button></form>
       <details id="config-conta-detalhes" data-admin><summary>Autenticação e requisitos da conta</summary><p id="config-modo-email"></p><p id="config-prerequisitos-email"></p><dl id="config-conta-estado" class="settings-auth"></dl><p>A autorização da conta é feita externamente. Salvar o endereço não autentica a conta.</p></details>
-      <details data-admin><summary>Ferramentas de teste</summary><label for="config-email-teste">Destinatário de teste<input id="config-email-teste" type="email" maxlength="255" autocomplete="off"></label><button id="testar-config-email" class="button secondary" type="button" disabled>Verificar configuração sem envio</button><p>Registra um teste local. Não verifica autenticação, conectividade SMTP ou entrega.</p><details><summary>Teste real controlado</summary><p>Requer configuração externa e confirmação explícita da mensagem sintética.</p><button id="preparar-teste-real" type="button" class="button secondary" disabled>Conferir teste real</button><button id="recuperar-teste-real" type="button" class="button secondary" hidden>Consultar o mesmo teste real</button><div id="resultado-teste-real"></div></details></details>
-      <details id="config-historico-testes" data-admin><summary>Histórico de testes</summary><div id="config-resultados-testes" class="settings-results" aria-live="polite"></div></details>
+      <details id="config-conta-teste" data-admin>
+        <summary>Conta para testes de e-mail</summary>
+        <p>Independente do envio de documentos ao cliente e da confirmação opcional ao motorista.</p>
+        <form id="form-conta-teste">
+          <fieldset id="campos-conta-teste" disabled>
+            <label>Provedor<select id="conta-teste-provedor"><option value="MICROSOFT_EXISTENTE">Microsoft — configuração existente</option><option value="GMAIL">Gmail</option></select></label>
+            <div id="conta-teste-gmail" hidden>
+              <label>Conta Gmail autorizada<input id="conta-teste-remetente" type="email" maxlength="255" autocomplete="off"></label>
+              <label>Autenticação<select id="conta-teste-autenticacao"><option value="APP_PASSWORD">Senha de aplicativo externa</option><option value="XOAUTH2">OAuth2 externo</option></select></label>
+            </div>
+            <p id="conta-teste-modo"></p><p id="conta-teste-autorizacao"></p>
+            <p>Salvar o endereço não autentica a conta. Nenhuma senha ou token é informado neste formulário.</p>
+            <button id="salvar-conta-teste" class="button primary" type="submit" disabled>Salvar conta de teste</button>
+          </fieldset>
+          <button id="recarregar-conta-teste" class="button secondary" type="button">Recarregar conta</button>
+        </form>
+        <p id="conta-teste-estado" role="status"></p>
+        <details><summary>Como configurar a credencial</summary><p>O administrador do backend fornece o usuário e a credencial externamente. Gmail exige OAuth2 ou senha de aplicativo permitida pela conta com verificação em duas etapas; nunca use a senha normal. O modo padrão é sem envio. Teste externo exige modo REAL, ativação externa, sessão ADMIN e confirmação específica da mensagem.</p><ul id="conta-teste-orientacoes"></ul></details>
+      </details>
+      <details data-admin><summary>Ferramentas de teste</summary><label for="config-email-teste">Destinatário de teste<input id="config-email-teste" type="email" maxlength="255" autocomplete="off"></label><button id="testar-config-email" class="button secondary" type="button" disabled>Verificar configuração sem envio</button><p>Usa a conta de teste salva. Não verifica autenticação, conectividade SMTP ou entrega.</p><details><summary>Teste real controlado</summary><p>Mensagem sintética sem anexos. Confira remetente, destinatário e conteúdo antes da confirmação específica.</p><button id="preparar-teste-real" type="button" class="button secondary" disabled>Conferir teste real</button><button id="recuperar-teste-real" type="button" class="button secondary" hidden>Consultar o mesmo teste real</button><div id="resultado-teste-real"></div></details></details>
+      <p id="conta-teste-ultima" role="status" data-admin></p><details id="config-historico-testes" data-admin><summary>Histórico de testes</summary><div id="config-resultados-testes" class="settings-results" aria-live="polite"></div></details>
     </section>
     <section id="saude" class="card" data-pagina="saude" hidden>
       <div class="section-heading"><h2>Disponibilidade dos recursos</h2><button id="saude-atualizar" class="button primary" type="button">Atualizar verificação</button></div><details><summary>Como interpretar</summary><p>✓ Disponível: condição comprovada. ⚠ Requer atenção, não configurado ou não verificado. ⛔ Indisponível: falha conhecida. A consulta não varre documentos, não grava arquivos nem envia e-mails.</p><a id="saude-configuracoes" href="#configuracoes">Revisar configuração / teste explícito da pasta</a><a href="#processamentos">Consultar diagnóstico</a></details><p id="saude-estado" role="status" aria-live="polite"></p><div id="saude-itens"></div>

@@ -37,7 +37,7 @@ try {
   abertura.etapa(1, 'Conectando à sua sessão…');
   try{
     const versao=await api('/api/versao');
-    if(versao.contrato!=='multioperador-V14-20261102')throw Object.assign(new Error('Versões incompatíveis. Inicie o JAR atual e recarregue o painel.'),{codigo:'VERSOES_INCOMPATIVEIS',incerto:false});
+    if(versao.contrato!=='equipe-V15-20261109')throw Object.assign(new Error('Versões incompatíveis. Inicie o JAR atual e recarregue o painel.'),{codigo:'VERSOES_INCOMPATIVEIS',incerto:false});
   }catch(error){if(error.status===404)error.message='Backend desatualizado. Inicie o JAR atual, sem sobrepor arquivos estáticos do checkout, e recarregue o painel.';throw error;}
   await iniciarSessao();
    configurarEmail({atualizarSelecao});configurarPacotes({atualizar});

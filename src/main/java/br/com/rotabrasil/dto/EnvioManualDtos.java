@@ -13,9 +13,10 @@ public final class EnvioManualDtos {
                             @AssertTrue boolean confirmado) {}
     public record Arquivo(String origem, Long id, String nome, String tipo, String finalidade,
                           List<Long> viagemIds, String sha256, int tamanho) {}
-    public record Snapshot(int versao,Long viagemId, String numero, String destinatario, List<Arquivo> arquivos) {
-        public Snapshot{if(versao==0)versao=1;if(versao!=1)throw new IllegalArgumentException("Versão de snapshot não suportada");}
-        public Snapshot(Long viagemId,String numero,String destinatario,List<Arquivo> arquivos){this(1,viagemId,numero,destinatario,arquivos);}
+    public record Snapshot(int versao,Long viagemId, String numero, String destinatario, List<Arquivo> arquivos,
+            String remetente,String assunto,String mensagem) {
+        public Snapshot{if(versao==0)versao=1;if(versao!=1&&versao!=2)throw new IllegalArgumentException("Versão de snapshot não suportada");}
+        public Snapshot(Long viagemId,String numero,String destinatario,List<Arquivo> arquivos){this(1,viagemId,numero,destinatario,arquivos,null,null,null);}
     }
     public record Conferencia(String id, String modo, OffsetDateTime expiraEm, String anteriorId, Snapshot snapshot) {}
     public record Tentativa(String id, Long viagemId, String modo, String situacao, String motivo,

@@ -1,17 +1,19 @@
 import { $,api,element,podeAdministrar } from './painel-base.js';
 import { apresentarErro } from './painel-diagnostico.js';
 import { mostrarConferenciaMensagem,pedidoConfirmacao } from './painel-confirmacao-recebimento.js';
+import { iniciarContaTeste,atualizarUltimaVerificacao } from './painel-conta-teste.js';
 let salvo=null,ocupado=false,alterado=false,testeId=null;
+let contaTestePronta=false,contaTesteAlterada=false;
 const campos=['config-remetente','config-subpasta','config-auto-exportacao'];
 function estado(texto,erro=false,incerto=false){$('estado-configuracoes').textContent=texto;$('estado-configuracoes').classList.toggle('error',erro&&!incerto);$('estado-configuracoes').classList.toggle('attention',incerto);}
 function detalhesFalha(error){const detalhes=element('details');detalhes.append(element('summary','Ver detalhes da falha'));apresentarErro(detalhes,error);$('config-diagnostico').replaceChildren(detalhes);}
 function controles(){
   const habilitado=podeAdministrar()&&salvo&&!ocupado;
   $('campos-configuracoes').disabled=!habilitado;$('salvar-configuracoes').disabled=!habilitado||!alterado;
-  for(const id of ['testar-config-email','testar-config-pasta','criar-config-subpasta'])$(id).disabled=!habilitado||alterado;
+   for(const id of ['testar-config-email','testar-config-pasta','criar-config-subpasta'])$(id).disabled=!habilitado||alterado||(id==='testar-config-email'&&contaTesteAlterada);
   $('recarregar-configuracoes').disabled=ocupado;
   $('config-email-teste').disabled=ocupado||!podeAdministrar();
-  $('preparar-teste-real').disabled=!habilitado||alterado||!salvo.confirmacaoMotorista.prontoParaTesteReal;
+  $('preparar-teste-real').disabled=!habilitado||alterado||!contaTestePronta;
 }
 function pastas(lista,selecionada){const opcoes=[...new Set(['',...lista,selecionada])];$('config-subpasta').replaceChildren(...opcoes.map(p=>new Option(p||'Pasta principal autorizada',p)));$('config-subpasta').value=selecionada;}
 function preencher(c){
@@ -30,6 +32,7 @@ function preencher(c){
   estado(`Configuração salva.${c.raizAutorizada?'':' Pasta não configurada; procure o administrador do servidor.'}`);controles();
 }
 async function resultados(){
+  atualizarUltimaVerificacao();
   const testes=await api('/api/configuracoes/testes');const alvo=$('config-resultados-testes');alvo.replaceChildren();
   for(const t of testes){
     const titulo=t.situacao==='SIMULADO'?'Teste sem envio':t.situacao==='ACEITO_SMTP'?'Aceito pelo provedor — entrega não comprovada':t.situacao==='FALHA'?'⛔ Falha':t.situacao==='DESCONHECIDO'?'⚠ Resultado desconhecido':t.situacao==='GRAVAVEL'?'✓ Pasta verificada':'Verificação requer atenção';
@@ -51,6 +54,8 @@ async function carregar(){
 }
 async function executar(acao){ocupado=true;controles();try{await acao();$('config-diagnostico').replaceChildren();}catch(error){if(error.incerto===undefined&&!error.diagnosticoOperacao){error.incerto=false;error.codigo='CONFIGURACAO_INCOMPLETA';}estado((error.incerto?'⚠ ':'⛔ ')+error.message,true,Boolean(error.incerto));detalhesFalha(error);}finally{ocupado=false;controles();}}
 export function iniciarConfiguracoes(){
+  document.addEventListener('conta-teste-estado',event=>{contaTestePronta=event.detail.pronto;contaTesteAlterada=event.detail.alterado;testeId=null;controles();});
+  iniciarContaTeste();
   $('config-verificar-conta').addEventListener('click',event=>{event.preventDefault();$('config-conta-detalhes').open=true;$('config-conta-detalhes').querySelector('summary').focus();});
   $('config-historico-testes').addEventListener('toggle',()=>{if($('config-historico-testes').open)resultados().catch(error=>apresentarErro($('config-resultados-testes'),error));});
   for(const id of campos)$(id).addEventListener('input',()=>{alterado=true;testeId=null;$('resultado-teste-real').replaceChildren();estado('Alterações ainda não salvas. Salve para usar ou testar esta configuração.');controles();});
@@ -64,7 +69,7 @@ export function iniciarConfiguracoes(){
     testeId||=crypto.randomUUID();await api('/api/configuracoes/teste-email',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:testeId,destinatario:input.value})});estado('Verificação registrada sem envio. Consulte o histórico de testes.');await resultados();
   }));
   $('config-email-teste').addEventListener('input',()=>{testeId=null;$('resultado-teste-real').replaceChildren();});
-  const exibirTeste=c=>mostrarConferenciaMensagem($('resultado-teste-real'),c,async conf=>{try{sessionStorage.setItem('rotabrasil-teste-real',conf.id);}catch{}await executar(async()=>{const t=await api('/api/configuracoes/confirmacoes-email-real',pedidoConfirmacao({conferenciaId:conf.id,confirmado:true}));try{sessionStorage.removeItem('rotabrasil-teste-real');}catch{}estado(t.mensagem,t.situacao==='FALHA');$('resultado-teste-real').replaceChildren(element('p',`${t.situacao} · ${t.mensagem}`));await resultados();});try{$('recuperar-teste-real').hidden=!sessionStorage.getItem('rotabrasil-teste-real');}catch{}});
+  const exibirTeste=c=>mostrarConferenciaMensagem($('resultado-teste-real'),c,async conf=>{try{sessionStorage.setItem('rotabrasil-teste-real',conf.id);}catch{}await executar(async()=>{const t=await api('/api/configuracoes/confirmacoes-email-real',pedidoConfirmacao({conferenciaId:conf.id,confirmado:true}));try{sessionStorage.removeItem('rotabrasil-teste-real');}catch{}estado(`${t.situacao==='FALHA'?'⛔ ':t.situacao==='DESCONHECIDO'?'⚠ ':'✓ '}${t.mensagem}`,t.situacao==='FALHA',t.situacao==='DESCONHECIDO');$('resultado-teste-real').replaceChildren(element('p',`${t.situacao} · ${t.mensagem}`));await resultados();});try{$('recuperar-teste-real').hidden=!sessionStorage.getItem('rotabrasil-teste-real');}catch{}});
   $('preparar-teste-real').addEventListener('click',()=>executar(async()=>{const input=$('config-email-teste');if(!input.value||!input.reportValidity())throw new Error('Informe o destinatário explícito do teste.');const c=await api('/api/configuracoes/conferencias-email-real',pedidoConfirmacao({destinatario:input.value,anteriorId:null}));exibirTeste(c);}));
   const recuperar=$('recuperar-teste-real');try{recuperar.hidden=!sessionStorage.getItem('rotabrasil-teste-real');}catch{}
   recuperar.addEventListener('click',()=>executar(async()=>{const id=sessionStorage.getItem('rotabrasil-teste-real');if(id)exibirTeste(await api('/api/configuracoes/conferencias-email-real/'+encodeURIComponent(id)));}));

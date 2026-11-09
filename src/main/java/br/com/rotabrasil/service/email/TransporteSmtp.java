@@ -26,8 +26,8 @@ public class TransporteSmtp implements TransporteEmail {
         jakarta.mail.internet.MimeMessage mime;
         try{
             mime=sender.createMimeMessage();var helper=new MimeMessageHelper(mime,true,"UTF-8");
-            helper.setFrom(remetente);helper.setTo(mensagem.destinatario());helper.setSubject("Documentos de viagem - referência #"+mensagem.viagemId());
-            helper.setText("Documentos selecionados e conferidos manualmente para a viagem de referência #"+mensagem.viagemId()+".",false);
+            helper.setFrom(remetente);helper.setTo(mensagem.destinatario());helper.setSubject(mensagem.assunto());
+            helper.setText(mensagem.texto(),false);
             for(var a:mensagem.arquivos())helper.addAttachment(a.nome(),new ByteArrayResource(a.conteudo()),a.nome().toLowerCase(java.util.Locale.ROOT).endsWith(".pdf")?"application/pdf":a.nome().toLowerCase(java.util.Locale.ROOT).endsWith(".xml")?"application/xml":"application/octet-stream");
         }catch(MessagingException|MailParseException ex){return Resultado.RECUSADO;}
         return publicar(mime);

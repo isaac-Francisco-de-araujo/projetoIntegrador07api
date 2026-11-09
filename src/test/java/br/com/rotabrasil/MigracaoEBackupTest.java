@@ -65,7 +65,7 @@ class MigracaoEBackupTest {
         assertThat(Files.readString(backup().resolve("arquivos/legado.xml"))).isEqualTo(CteFixture.xml());
     }
 
-    @Test void backupV14RestauraBancoXmlPdfEHistoricoSemUsarOsOriginais() throws Exception {
+    @Test void backupV15RestauraBancoXmlPdfContaTesteEHistoricoSemUsarOsOriginais() throws Exception {
         Path copia = base.resolve("backup-v14");
         String impressao;
         byte[] pdf = "%PDF-1.4\nSINTETICO - SEM VALOR FISCAL\n%%EOF".getBytes(java.nio.charset.StandardCharsets.UTF_8);
@@ -83,6 +83,7 @@ class MigracaoEBackupTest {
             }
             try (var s = c.createStatement()) {
                 s.executeUpdate("INSERT INTO anexo_viagens VALUES(202,102)");
+                s.executeUpdate("UPDATE conta_teste_email SET provedor='GMAIL',remetente='backup-sintetico@example.invalid',autenticacao='APP_PASSWORD',versao=1 WHERE id=1");
                 s.executeUpdate("INSERT INTO conferencias_email(id,viagem_id,selecao,snapshot,criada_em,expira_em) VALUES('conferencia-v14',102,'{}','{}',CURRENT_TIMESTAMP,DATEADD('MINUTE',30,CURRENT_TIMESTAMP))");
                 s.executeUpdate("INSERT INTO tentativas_email(id,conferencia_id,viagem_id,snapshot,modo,situacao,motivo,criada_em) VALUES('tentativa-v14','conferencia-v14',102,'{}','SIMULADO','DESCONHECIDO','Fixture sintetica',CURRENT_TIMESTAMP)");
             }
@@ -118,6 +119,8 @@ class MigracaoEBackupTest {
             assertThat(restaurado.aprovado()).isTrue();
             assertThat(restaurado.impressao()).isEqualTo(impressao);
             assertThat(escalar(c, "SELECT COUNT(*) FROM \"flyway_schema_history\" WHERE \"version\"='14' AND \"success\"=TRUE")).isEqualTo("1");
+            assertThat(escalar(c, "SELECT COUNT(*) FROM \"flyway_schema_history\" WHERE \"version\"='15' AND \"success\"=TRUE")).isEqualTo("1");
+            assertThat(escalar(c, "SELECT remetente FROM conta_teste_email WHERE id=1")).isEqualTo("backup-sintetico@example.invalid");
             assertThat(escalar(c, "SELECT situacao FROM tentativas_email WHERE id='tentativa-v14'")).isEqualTo("DESCONHECIDO");
             assertThat(escalar(c, "SELECT COUNT(*) FROM anexo_viagens WHERE anexo_id=202 AND viagem_id=102")).isEqualTo("1");
         }
