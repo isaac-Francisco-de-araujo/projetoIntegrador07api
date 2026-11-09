@@ -4,7 +4,7 @@
 migrações; o inventário inclui responsabilidades e seus eventos. Nenhuma base
 operacional foi migrada nesta evolução. O restante registra as etapas anteriores.
 
-**Código atual: V10.** A [nova configuração, exportação e notificações](configuracoes-exportacao-notificacoes.md)
+**Histórico V9–V10.** A [configuração, exportação e notificações](configuracoes-exportacao-notificacoes.md)
 acrescenta seis tabelas ao inventário/fingerprint. Bancos existentes continuam
 exigindo autorização e backup verificado antes da migração. A versão exigida pelo
 código não comprova atualização de qualquer banco em uso.
@@ -52,8 +52,12 @@ verificado se houver registros, mesmo que alguém force um baseline externo.
 | V8 | Operadores, auditoria e histórico de processamentos |
 | V9 | Configuração, testes, recebimentos, notificações e exportações com itens/snapshots |
 | V10 | Correlação, resolução comprovada de processamentos e histórico de recuperação da exportação |
+| V11 | Confirmação opcional de recebimento e conferências de notificação |
+| V12 | Versionamento de operadores |
+| V13 | Responsabilidade de trabalho e seus eventos |
+| V14 | Índices das consultas compartilhadas |
 
-A versão atual exige V10. O inventário/fingerprint/backup inclui também as tabelas
+A versão atual exige V14. O inventário/fingerprint/backup inclui também as tabelas
 `conferencias_email` e `tentativas_email`, preservando destinatário, seleção e
 resultados das tentativas. Veja [o fluxo simulado e os estados](envio-manual.md).
 Inclui ainda configuração da operação e históricos V9. Cópias na raiz externa
@@ -138,6 +142,46 @@ no banco são preservados: restauração para outro caminho exige um plano expl�
 de remapeamento, não uma substituição automática. Não sobrescreva o banco atual
 como primeira tentativa de restauração.
 
+### Evidências separadas e teste V14 — 09/11/2026
+
+Reutilizados `ManutencaoBanco` (CLI offline), `BackupBanco` e `InventarioBanco`.
+Não há mecanismo paralelo, endpoint de restauração, política de retenção ou tarefa
+automática nova. A CLI oferece `inventario`, `backup` e `migrar`; **não oferece um
+comando `restaurar` nem `verificar` independente**. `backup` chama a verificação
+existente ao concluir, e `BackupBanco.verificar` também é exercitado diretamente
+pelos testes. Nenhuma ferramenta operacional foi executada contra a base real.
+
+| Evidência | O que registrar em área privada | O que não comprova |
+|---|---|---|
+| Backup criado | Identificação do snapshot, momento da captura, origem/versão, destino e execução sem erro | Existir manifesto não confirma que os arquivos ainda estão íntegros |
+| Integridade verificada | Resultado da verificação do ZIP e SHA-256 dos arquivos; inventário e cobertura da raiz | Não comprova abertura/uso de uma restauração nem recupera arquivos fora da raiz |
+| Restauração testada | Data, destino vazio isolado, versão H2/esquema, registros/vínculos/históricos/bytes comparados e responsável | Não valida uma instalação distinta ou uma política de recuperação da empresa |
+
+O teste `MigracaoEBackupTest.backupV14RestauraBancoXmlPdfEHistoricoSemUsarOsOriginais`
+cria base e acervo sintéticos, verifica V14 e usa a CLI offline de backup existente.
+Depois verifica novamente o snapshot, retira os originais do caminho registrado,
+copia XML/PDF do backup para uma raiz vazia no mesmo caminho **apenas dentro do
+diretório temporário**, extrai um único banco H2 para outra base, abre em somente
+leitura e compara a impressão completa do inventário, os bytes, o vínculo da
+fatura e a tentativa `DESCONHECIDO`. Assim o teste não passa lendo originais que
+ainda estivessem disponíveis. O caso antigo de corrupção de cópia continua exigindo
+recusa. Fixtures não são documentos fiscais e não homologam PDFs reais.
+
+Restauração operacional continua exigindo plano/autorizações: escritores parados,
+snapshot verificado, diretório vazio e área isolada, versão H2 compatível e revisão
+dos caminhos persistidos. Restaurar para outro caminho físico não autoriza editar
+referências automaticamente. Não substituir a base em uso como primeira tentativa.
+Registrar a comparação e a decisão de retorno ao serviço antes de liberar os PCs.
+
+O painel de Saúde permanece **Não verificado** quando falta evidência confiável.
+O teste `SaudeCompartilhadaTest.manifestoLocalizadoNaoComprovaIntegridadeOuRestauracao`
+confirma que um manifesto encontrado não promove integridade/restauração a sucesso.
+Os recibos desses testes são os relatórios JUnit externos; não são evidências de
+backup/restauração da empresa nem são gravados na base operacional.
+
+Permanecem a definir: **destino, frequência, responsável, retenção e janela de
+recuperação**. Não há política presumida, descarte automático ou cópia agendada.
+
 ## Aplicar a migração a um banco existente
 
 1. Com escritores parados, faça inventário e backup verificado do estado inicial.
@@ -197,9 +241,9 @@ preservados para reconciliação.
   anterior às restrições para verificar diagnóstico. A aplicação normal exige
   V4; os cenários históricos não desativam as restrições dos testes atuais.
 
-O repositório ainda versiona artefatos históricos em `target/`. Inicie builds
-com `clean` para não reutilizar classes ou configurações antigas; não inclua
-esses artefatos na revisão das fontes.
+Nota histórica: esta etapa encontrou artefatos antigos em `target/`. Atualmente
+`target/` é ignorado e os builds usam o diretório externo suportado, preservando
+relatórios anteriores; não execute `clean` sobre uma área operacional.
 
 Na nuvem, use `/workspace/tools/rotabrasil-mvn` no lugar de `mvn`. Relatórios e
 artefatos ficam fora do checkout em `/workspace/rotabrasil-dev/etapa4`.

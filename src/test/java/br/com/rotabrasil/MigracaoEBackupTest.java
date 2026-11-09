@@ -65,6 +65,66 @@ class MigracaoEBackupTest {
         assertThat(Files.readString(backup().resolve("arquivos/legado.xml"))).isEqualTo(CteFixture.xml());
     }
 
+    @Test void backupV14RestauraBancoXmlPdfEHistoricoSemUsarOsOriginais() throws Exception {
+        Path copia = base.resolve("backup-v14");
+        String impressao;
+        byte[] pdf = "%PDF-1.4\nSINTETICO - SEM VALOR FISCAL\n%%EOF".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        try (var c = legado()) {
+            criarBackup(c);
+            ManutencaoBanco.migrar(c, raiz(), backup());
+            Files.write(raiz().resolve("fatura.pdf"), pdf);
+            String hash = InventarioBanco.hashArquivo(raiz().resolve("fatura.pdf"));
+            try (var s = c.createStatement()) {
+                s.executeUpdate("INSERT INTO pacotes(id,nome_arquivo,sha256,configuracao_sha256,criado_em) VALUES(201,'sintetico.zip','" + "a".repeat(64) + "','" + "b".repeat(64) + "',CURRENT_TIMESTAMP)");
+                s.executeUpdate("INSERT INTO pacote_documentos VALUES(201,103)");
+            }
+            try (var s = c.prepareStatement("INSERT INTO anexos(id,pacote_id,nome_arquivo,finalidade,caminho,sha256,token,numero_armazenamento) VALUES(202,201,'fatura.pdf','FATURA',?,?,?,'66213')")) {
+                s.setString(1, raiz().resolve("fatura.pdf").toString());s.setString(2, hash);s.setString(3, java.util.UUID.randomUUID().toString());s.executeUpdate();
+            }
+            try (var s = c.createStatement()) {
+                s.executeUpdate("INSERT INTO anexo_viagens VALUES(202,102)");
+                s.executeUpdate("INSERT INTO conferencias_email(id,viagem_id,selecao,snapshot,criada_em,expira_em) VALUES('conferencia-v14',102,'{}','{}',CURRENT_TIMESTAMP,DATEADD('MINUTE',30,CURRENT_TIMESTAMP))");
+                s.executeUpdate("INSERT INTO tentativas_email(id,conferencia_id,viagem_id,snapshot,modo,situacao,motivo,criada_em) VALUES('tentativa-v14','conferencia-v14',102,'{}','SIMULADO','DESCONHECIDO','Fixture sintetica',CURRENT_TIMESTAMP)");
+            }
+            var inventario = new InventarioBanco(raiz()).analisar(c);
+            assertThat(inventario.aprovado()).isTrue();
+            impressao = inventario.impressao();
+        }
+        // Ferramenta existente em modo offline; criar e verificar são evidências distintas.
+        ManutencaoBanco.executar("backup", "--banco", base.resolve("banco").toString(), "--arquivos", raiz().toString(), "--saida", copia.toString());
+        assertThat(copia.resolve("banco.zip")).isRegularFile();
+        var manifesto = BackupBanco.verificar(copia);
+        assertThat(manifesto.arquivos()).hasSize(2);
+        assertThat(manifesto.impressao()).isEqualTo(impressao);
+
+        // Retira os originais do caminho usado pelo banco. Nenhuma leitura pode mascarar restauração ausente.
+        Files.move(raiz(), base.resolve("originais-preservados"));
+        Files.createDirectory(raiz());
+        for (var arquivo : manifesto.arquivos()) {
+            Path destino = raiz().resolve(arquivo.relativo()).normalize();
+            assertThat(destino.startsWith(raiz())).isTrue();
+            Files.createDirectories(destino.getParent());
+            Files.copy(copia.resolve("arquivos").resolve(arquivo.relativo()), destino);
+        }
+        int bancos = 0;
+        try (var zip = new ZipInputStream(Files.newInputStream(copia.resolve("banco.zip")))) {
+            for (var e = zip.getNextEntry(); e != null; e = zip.getNextEntry()) {
+                if (e.getName().endsWith(".mv.db")) {Files.copy(zip, base.resolve("restaurado-v14.mv.db"));bancos++;}
+            }
+        }
+        assertThat(bancos).isEqualTo(1);
+        try (var c = DriverManager.getConnection("jdbc:h2:file:" + base.resolve("restaurado-v14") + ";IFEXISTS=TRUE;ACCESS_MODE_DATA=r", "sa", "")) {
+            var restaurado = new InventarioBanco(raiz()).analisar(c);
+            assertThat(restaurado.aprovado()).isTrue();
+            assertThat(restaurado.impressao()).isEqualTo(impressao);
+            assertThat(escalar(c, "SELECT COUNT(*) FROM \"flyway_schema_history\" WHERE \"version\"='14' AND \"success\"=TRUE")).isEqualTo("1");
+            assertThat(escalar(c, "SELECT situacao FROM tentativas_email WHERE id='tentativa-v14'")).isEqualTo("DESCONHECIDO");
+            assertThat(escalar(c, "SELECT COUNT(*) FROM anexo_viagens WHERE anexo_id=202 AND viagem_id=102")).isEqualTo("1");
+        }
+        assertThat(Files.readString(raiz().resolve("legado.xml"))).isEqualTo(CteFixture.xml());
+        assertThat(Files.readAllBytes(raiz().resolve("fatura.pdf"))).isEqualTo(pdf);
+    }
+
     @Test void migracaoPreencheIdentidadePreservaCaminhoEImpedeDuplicatas() throws Exception {
         try (var conexao = legado()) {
             criarBackup(conexao);

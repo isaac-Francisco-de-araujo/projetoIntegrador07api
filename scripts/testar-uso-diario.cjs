@@ -3,11 +3,11 @@
 const {chromium,expect}=require('playwright/test');
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {spawn,execFileSync}=require('node:child_process'),{randomBytes,createHash}=require('node:crypto');
-const [jarArg,outArg]=process.argv.slice(2),root=path.resolve(__dirname,'..');
+const [jarArg,outArg,compararRef]=process.argv.slice(2),root=path.resolve(__dirname,'..');
 if(!jarArg||!outArg)throw Error('Uso: node scripts/testar-uso-diario.cjs JAR SAIDA_EXTERNA');
 const out=path.resolve(outArg);if(out===root||out.startsWith(root+path.sep))throw Error('Use saída externa');
 fs.mkdirSync(out,{recursive:true});const base=fs.mkdtempSync(path.join(out,'.isolado-')),destino=path.join(base,'copias');fs.mkdirSync(destino);
-const checks=[],errors=[],requests=[],responses=[],browserConsole=[],acessibilidade=[],senha=randomBytes(24).toString('base64url');
+const checks=[],errors=[],requests=[],responses=[],browserConsole=[],acessibilidade=[],senha=randomBytes(24).toString('base64url');let comparacaoInicializacao=null;
 const wait=ms=>new Promise(r=>setTimeout(r,ms));let server,browser,page,url,logs='';
 async function start(protegido=false){
  let log='';const ssl=[];
@@ -31,7 +31,21 @@ async function conferir(zip,name='sintetico.zip'){
 }
 async function associar(){await page.locator('#vinculo-a2 select').selectOption('FATURA');for(const box of await page.locator('#vinculo-a2 input[type=checkbox]').all())await box.check();await page.locator('#vinculo-a3 select').selectOption('VIAGEM');await page.locator('#vinculo-a3 input[type=checkbox]').first().check();}
 async function run(){
- await start();browser=await chromium.launch({channel:process.env.ROTABRASIL_BROWSER_CHANNEL||'chrome',headless:true});page=await nova();
+  await start();browser=await chromium.launch({channel:process.env.ROTABRASIL_BROWSER_CHANNEL||'chrome',headless:true});
+  if(compararRef){
+   assert.match(compararRef,/^[a-f0-9]{7,40}$/i);
+   const anterior=execFileSync('git',['show',compararRef+':src/main/resources/static/painel.js'],{cwd:root,encoding:'utf8'});
+   const contexto=await browser.newContext(),legado=await contexto.newPage(),chamadas=[],consoleLegado=[];
+   legado.on('request',r=>{if(r.url().includes('/api/'))chamadas.push(r.url());});legado.on('console',m=>{if(m.type()==='error')consoleLegado.push(m.text());});
+   await legado.route('**/painel.js',r=>r.fulfill({contentType:'text/javascript',body:anterior}));
+   await legado.route('**/painel-saude.js',r=>r.fulfill({status:503,contentType:'text/javascript',body:'/* falha sintética */'}));
+   await legado.goto(url+'/#pacotes');await legado.waitForLoadState('networkidle');
+   assert.equal(chamadas.length,0,'Import estático de Saúde impede inicialização antes de sessão/inspeção');
+   assert.ok(consoleLegado.some(t=>t.includes('503')),'Console registra falha do módulo');
+   comparacaoInicializacao={referencia:compararRef,cenario:'Somente painel.js anterior sobre backend isolado atual; falha controlada do módulo Saúde',chamadasApi:chamadas,console:consoleLegado};
+   await legado.screenshot({path:path.join(out,'inicializacao-anterior-modulo-503.png'),fullPage:true});await contexto.close();
+  }
+  page=await nova();
  await page.route('**/painel-saude.js',r=>r.fulfill({status:503,contentType:'text/javascript',body:'/* falha sintética */'}));
  await page.route('**/api/configuracoes',r=>r.fulfill({status:503,contentType:'application/json',body:'{}'}));
   const inicio=Date.now();await page.goto(url+'/#pacotes');await pronta();const aberturaMs=Date.now()-inicio;assert.ok(!requests.some(r=>r.url.endsWith('/api/configuracoes')));await page.screenshot({path:path.join(out,'zip-selecao-1366.png'),fullPage:true});
@@ -46,14 +60,33 @@ async function run(){
   await page.locator('#zip-voltar-conferencia').click();await expect(page.locator('#vinculo-a2 select')).toHaveValue('FATURA');
   await page.locator('#zip-voltar-selecao').click();await expect(page.locator('#arquivo-zip')).toBeFocused();assert.equal(await page.locator('#arquivo-zip').evaluate(e=>e.tabIndex),0,'Voltar não retira o seletor da ordem do teclado');await page.keyboard.press('Tab');await expect(page.locator('#inspecionar-zip')).toBeFocused();await page.keyboard.press('Shift+Tab');await expect(page.locator('#arquivo-zip')).toBeFocused();await page.locator('#zip-retomar').click();await expect(page.locator('#vinculo-a2 select')).toHaveValue('FATURA');await page.locator('#zip-avancar').click();
  let resposta=page.waitForResponse(r=>r.url().includes('/api/pacotes/confirmacao')&&r.request().method()==='POST');await page.locator('#confirmar-zip').click();const imported=await(await resposta).json();await expect(page.locator('#zip-ver-documentos')).toBeVisible();await expect(page.locator('#zip-resumo-final')).toContainText('importados');assert.equal((await get('/api/documentos')).length,2);
- checks.push('ZIP válido: inspeção não importa; associação de 2 PDFs obrigatória, volta preserva escolhas e confirmação conclui sem e-mail');
+  checks.push('ZIP válido: inspeção não importa; associação de 2 PDFs obrigatória, volta preserva escolhas e confirmação conclui sem e-mail');
+  for(const [tela,modulo] of [['busca','painel-busca.js'],['administracao','painel-admin.js']]){
+   const p=await nova();await p.route('**/'+modulo,r=>r.fulfill({status:503,contentType:'text/javascript',body:'/* falha sintética */'}));
+   await p.goto(url+'/#pacotes');await pronta(p);await nav(tela,p);await expect(p.locator('#'+tela+' [data-falha-modulo]')).toHaveCount(1);await expect(p.locator('#aviso')).toBeHidden();
+   await nav('pacotes',p);await p.locator('#arquivo-zip').setInputFiles({name:'modulo-isolado.zip',mimeType:'application/zip',buffer:zip});const r=p.waitForResponse(r=>r.url().includes('/api/pacotes/inspecao')&&r.request().method()==='POST');await p.locator('#inspecionar-zip').click();assert.equal((await r).status(),200);await expect(p.locator('#orientacao-avancar-zip')).toContainText('Associe os 2 PDFs pendentes');await p.context().close();
+  }
+  checks.push('Falhas de módulo Busca e Administração têm erro local; inspeção ZIP continua funcional');
  await nav('saude');await expect(page.locator('#saude')).toContainText('Não foi possível abrir esta tela');await nav('pacotes');await nav('saude');await expect(page.locator('#saude [data-falha-modulo]')).toHaveCount(1);await page.unroute('**/painel-saude.js');await page.locator('#saude').getByRole('button',{name:'Tentar novamente',exact:true}).click();await expect(page.locator('#saude-estado')).toContainText('Última verificação');await nav('pacotes');await expect(page.locator('#zip-ver-documentos')).toBeVisible();checks.push('Falha de módulo secundário isolada, sem avisos duplicados e com recuperação local; importação disponível sem dependência de Configurações');
  await page.unroute('**/api/configuracoes');await nav('configuracoes');await expect(page.locator('#config-remetente')).toBeEnabled();await page.locator('#config-remetente').fill('sintetico@example.invalid');await page.locator('#config-auto-exportacao').check();await page.locator('#salvar-configuracoes').click();await expect(page.locator('#estado-configuracoes')).toContainText('Configuração salva');
   await page.route('**/api/configuracoes/teste-pasta',r=>r.fulfill({status:503,json:{}}));await page.locator('#testar-config-pasta').click();await expect(page.locator('#estado-configuracoes')).toHaveClass(/attention/);await expect(page.locator('#config-diagnostico details')).not.toHaveCount(0);await expect(page.locator('#aviso')).toBeHidden();await page.unroute('**/api/configuracoes/teste-pasta');
   await page.locator('#testar-config-pasta').click();await expect(page.locator('#estado-configuracoes')).not.toHaveClass(/error|attention/);await expect(page.locator('#config-diagnostico')).toBeEmpty();await expect(page.locator('#estado-configuracoes')).not.toContainText('Alterações');
  const ferramentas=page.locator('details').filter({has:page.locator('#testar-config-email')}).first();await ferramentas.locator('summary').first().click();await page.locator('#config-email-teste').fill('teste@example.invalid');await page.locator('#testar-config-email').click();await expect(page.locator('#config-resultados-testes')).toContainText('Teste sem envio');
   checks.push('Configuração salva no servidor, pasta verificada e teste administrativo identificado sem transporte');
-  await ferramentas.locator('summary').first().click();
+   await ferramentas.locator('summary').first().click();
+   // Apenas respostas de leitura sintéticas: não ativar SMTP para verificar a apresentação dos canais.
+   const configBase=await get('/api/configuracoes');
+   for(const caso of [
+    {modo:'SIMULADO',motorista:true,situacao:configBase.situacaoEmail,texto:'Envio não configurado'},
+    {modo:'REAL',motorista:false,situacao:'ENDERECO_SALVO_SMTP_EXTERNO',texto:'autenticação e entrega não verificadas'},
+    {modo:'REAL',motorista:false,situacao:'REMETENTE_DIVERGE_SMTP',texto:'remetente salvo difere'}
+   ]){
+    await page.route('**/api/configuracoes',r=>r.fulfill({json:{...configBase,modoEnvioDocumental:caso.modo,situacaoEmail:caso.situacao,confirmacaoMotorista:{...configBase.confirmacaoMotorista,realDisponivel:caso.motorista}}}));
+    await page.locator('#recarregar-configuracoes').click();await expect(page.locator('#config-situacao-email')).toContainText(caso.texto);await expect(page.locator('#gerar-previa')).toBeDisabled();
+    await page.unroute('**/api/configuracoes');
+   }
+   await page.locator('#recarregar-configuracoes').click();await expect(page.locator('#config-situacao-email')).toContainText('Envio não configurado');
+   checks.push('Resumo documental independente da confirmação opcional; divergência de remetente visível, sem ativar transporte');
    for(const tipo of ['pdfInvalido','xmlInvalido']){assert.equal((await conferir(Buffer.from(fixture[tipo]),tipo+'.zip')).status(),400);await expect(page.locator('#zip-avancar')).toBeDisabled();await expect(page.locator('#zip-problemas')).toBeVisible();await expect(page.locator('#zip-problemas')).toContainText(tipo==='pdfInvalido'?'fatura.pdf':'cte.xml');await expect(page.locator('#zip-problemas li').first().locator('p')).toHaveCount(2);await expect(page.locator('#zip-detalhes')).not.toHaveAttribute('open','');await page.screenshot({path:path.join(out,`zip-${tipo}-1366.png`),fullPage:true});assert.equal((await get('/api/documentos')).length,2);}
  checks.push('PDF/XML inválidos recusados com HTTP 400, diagnóstico contextual e sem importação parcial');
  // Perda de resposta após o commit: não assumir falha nem repetir automaticamente.
@@ -108,6 +141,6 @@ async function run(){
  }
  const admin=protectedPages[0];await admin.screenshot({path:path.join(out,'operacao-autenticada.png'),fullPage:true});const consulta=protectedPages[2];await consulta.locator('#sair').click();await expect(consulta).toHaveURL(/\/login/);assert.equal((await consulta.request.get(url+'/api/sessao')).status(),401);
  const operador=protectedPages[1];await operador.context().clearCookies();await nav('fila',operador);await expect(operador.locator('#sessao-expirada')).toBeVisible();await expect(operador.locator('#arquivo-zip')).toBeDisabled();checks.push('Perfil operacao em HTTPS, cookies Secure/HttpOnly, login/sessão válida/logout/expiração; ADMIN/OPERADOR/CONSULTA e CSRF efetivos');
- assert.deepEqual(errors,[]);assert.equal(requests.filter(r=>r.method==='POST'&&/\/tentativas-email$/.test(r.url)).length,1,'Apenas fixture backend sem envio; nenhuma tentativa cotidiana pelo formulário');assert.ok(!requests.some(r=>r.method==='POST'&&/\/confirmacoes$|\/confirmacoes-email-real$/.test(r.url)),'Nenhum envio de confirmação solicitado');fs.writeFileSync(path.join(out,'servidor.log'),logs);fs.writeFileSync(path.join(out,'resultado.json'),JSON.stringify({checks,errors,responses,browserConsole,acessibilidade,aberturaMs,envioExternoExecutado:false},null,2));console.log(JSON.stringify({checks,errors,acessibilidade,aberturaMs},null,2));
+  assert.deepEqual(errors,[]);assert.equal(requests.filter(r=>r.method==='POST'&&/\/tentativas-email$/.test(r.url)).length,1,'Apenas fixture backend sem envio; nenhuma tentativa cotidiana pelo formulário');assert.ok(!requests.some(r=>r.method==='POST'&&/\/confirmacoes$|\/confirmacoes-email-real$/.test(r.url)),'Nenhum envio de confirmação solicitado');fs.writeFileSync(path.join(out,'servidor.log'),logs);fs.writeFileSync(path.join(out,'resultado.json'),JSON.stringify({checks,errors,responses,browserConsole,acessibilidade,aberturaMs,comparacaoInicializacao,envioExternoExecutado:false},null,2));console.log(JSON.stringify({checks,errors,acessibilidade,aberturaMs,comparacaoInicializacao},null,2));
 }
 run().catch(async e=>{console.error(e);fs.writeFileSync(path.join(out,'falha.log'),String(e)+'\n'+logs);if(page&&!page.isClosed())await page.screenshot({path:path.join(out,'falha.png'),fullPage:true}).catch(()=>{});process.exitCode=1;}).finally(async()=>{await browser?.close();await stop();fs.rmSync(base,{recursive:true,force:true,maxRetries:5,retryDelay:500});});

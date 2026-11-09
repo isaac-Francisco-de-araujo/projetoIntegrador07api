@@ -12,7 +12,8 @@ flowchart TD
     TRABALHO --> FILA[Fila · responsáveis]
     FILA -.-> REF_FILA[Histórico e referências · UUID sob demanda]
     TRABALHO --> INICIO[Visão geral · indicadores e atalhos]
-    TRABALHO --> ZIP[Importar ZIP]
+    MANUAL[Download manual no Outlook da empresa] --> ZIP[Importar ZIP · upload manual]
+    TRABALHO --> ZIP
     TRABALHO --> VIAGENS[Viagens · lista paginada e Mais filtros]
     VIAGENS --> DOCS[Selecionar viagem · documentos e anexos]
     DOCS -->|Voltar · preserva consulta| VIAGENS
@@ -24,6 +25,7 @@ flowchart TD
     CONFERENCIA -->|erros| CORRIGIR[Arquivo · problema · orientação para corrigir e reconferir]
     CORRIGIR -.-> TECNICO[Ver detalhes · diagnóstico técnico recolhido]
     CORRIGIR --> SELECAO
+    CONFERENCIA -.-> PDF[Visualizar PDF · identificar CT-e e finalidade manualmente]
     CONFERENCIA -->|vínculos explícitos válidos| CONFIRMACAO[3. Confirmar importação]
     CONFERENCIA -->|Voltar / Retomar · preserva escolhas| SELECAO
     CONFIRMACAO -->|resposta confirmada| RESULTADO[Documentos registrados · Ver documentos]
@@ -33,7 +35,10 @@ flowchart TD
     ZIP --> AVULSO[XML / PDF individual · fluxo existente]
     ZIP --> IMPORTACOES[Ver importações · tela separada]
     ZIP -.-> OPCIONAL[Confirmação ao motorista · opcional e independente]
-    ACOMP --> ENVIOS[Envios · histórico honesto · envio condicionado]
+    ACOMP --> ENVIOS[Documentos ao cliente · destinatário e anexos explícitos]
+    ENVIOS --> CANAL{Modo documental disponível?}
+    CANAL -->|não| SEM_ENVIO[Envio não configurado · confirmação indisponível]
+    CANAL -->|sim| CONFERIR_ENVIO[Conferir snapshot · confirmação manual]
     DOCS -->|seleção explícita| ENVIOS
     ENVIOS --> HISTORICO_ENVIO[Histórico recolhido · data / destinatário / resultado]
     HISTORICO_ENVIO --> REFERENCIAS_ENVIO[Ver detalhes · UUID / anexos / reenvio]
@@ -45,4 +50,8 @@ flowchart TD
     ADMIN --> OPERADORES[Operadores · lista e filtro]
     OPERADORES --> FORMULARIO[Diálogos · cadastro / permissões / redefinição]
     ADMIN --> SAUDE[Saúde do sistema]
+    SAUDE -.-> EVIDENCIA[Backup · manifesto não comprova integridade ou restauração]
+    CENTRAL[Backend central · operação protegida · V14] --> URL
+    PCS[PCs autorizados · navegadores e contas individuais] -->|HTTPS| CENTRAL
+    CENTRAL -.-> PRIVADO[Banco e acervo privados · H2 não compartilhado]
     PAINEL -.-> LAZY[Telas secundárias carregam sob demanda · falha local]

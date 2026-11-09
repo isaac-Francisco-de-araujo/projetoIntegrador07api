@@ -1,5 +1,12 @@
 # Estabilização antes da Etapa E-mail — 31/10/2026
 
+**Leitura atual (09/11/2026):** este documento conserva evidências históricas V10.
+O código atual exige V14 e já possui login individual. A regra comercial atual é
+envio de documentos/fatura ao cliente pela conta Outlook da empresa; confirmação
+ao motorista é opcional, sem endereço obrigatório. Consulte a
+[revisão operacional](revisao-operacional-20261109.md) para reprodução ZIP atual,
+testes, preparação centralizada e limites de homologação.
+
 ## Resultado e escopo
 
 O fluxo manual foi exercitado com backend e frontend reais: configuração,

@@ -1,18 +1,38 @@
 # Etapa E-mail — confirmação manual de recebimento ao motorista (V11)
 
+## Regra comercial atual — 09/11/2026
+
+A conta remetente é o Outlook da empresa. O trabalho principal é enviar os documentos
+e a fatura **ao cliente**, com destinatário e anexos explicitamente conferidos. Não há
+e-mail de motorista informado. **A confirmação ao motorista é opcional**, não é
+requisito comercial nem etapa obrigatória de seleção, conferência ou importação.
+Não há disparo real automático. Download no Outlook e upload do ZIP são manuais;
+o CT-e de um PDF é identificado abrindo o documento, sem associação inferida.
+
+O código atual exige **V14**, e login/permissões já existem e foram exercitados em
+ambiente isolado. O 404 de `/login`, esquema V11 e roteiros de simulação abaixo são
+registros da entrega histórica V11, não impedimentos atuais comprovados. Na interface
+cotidiana, envio sem transporte real configurado fica indisponível; testes ficam na
+área administrativa. Históricos não são apagados nem têm seus estados alterados.
+
+Para o envio documental ao cliente, consulte o [contrato atualizado](envio-manual.md#regra-atual-envio-documental-ao-cliente--09112026)
+e a [preparação Microsoft](envio-manual.md#preparação-microsoft-para-homologação-futura).
+"Outlook da empresa" ainda não identifica plataforma, tenant, modalidade da caixa
+e políticas de SMTP. Não se presume credencial básica nem uma conta Microsoft 365.
+
 ## Entrega e decisões
 
-O operador baixa o ZIP manualmente pelo Outlook, importa no painel existente,
-informa o **E-mail do motorista para confirmação**, confere remetente, destinatário,
-assunto, corpo, recebimento/pacote, modo e situação conhecida, e confirma a mensagem.
-A confirmação é independente do envio documental ao cliente e não leva anexos fiscais.
+Quando o recurso opcional for utilizado com um endereço disponível e informado
+explicitamente, o operador confere remetente, destinatário, assunto, corpo,
+recebimento/pacote, modo e situação conhecida antes de confirmar. A confirmação é
+independente do envio documental ao cliente e não leva anexos fiscais.
 
 Foi reutilizado `NotificacaoRecebimentoService`, `notificacoes_recebimento`,
 `MensagemNotificacao`, `TransporteEmail` e `TransporteSmtp`, além da configuração,
 coordenação transacional, diagnóstico e Central existentes. Não há segundo mecanismo
 de envio, leitura de caixa, contatos, download automático de ZIP ou login novo.
 
-Decisões desta execução:
+Registro histórico da execução V11 (31/10/2026):
 
 - O tipo da conta remetente **ainda não foi identificado pelo responsável**.
 - Foi escolhida a opção **manter a proteção existente**: REAL exige segurança ativa,

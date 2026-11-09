@@ -7,12 +7,12 @@ envio, sem alterar sua situação persistida ou ocultar falhas/resultados descon
 
 **Evolução V11:** a [confirmação ao motorista](confirmacao-motorista.md) reutiliza
 o diagnóstico `NOTIFICACAO` e a Central. Falha conhecida fica em vermelho;
-DESCONHECIDO em âmbar; SIMULADO/ACEITO_SMTP em verde com identificação explícita
-do que foi comprovado, sem afirmar entrega/leitura. Consultar avisos abre a
+DESCONHECIDO em âmbar; Teste sem envio tem identificação própria, e ACEITO_SMTP
+indica aceite do provedor, sem afirmar entrega/leitura. Consultar avisos abre a
 mensagem e suas tentativas; não dispara transporte. Reenvio exige conferência e
 confirmação vinculadas. Sucesso posterior pode resolver falha conhecida, mas não
 resolve uma tentativa anterior desconhecida. Importação/exportação são independentes.
-Código atual exige V11; não houve migração operacional.
+Código atual exige V14; não houve migração operacional nesta revisão.
 
 **Revisão atual (31/10/2026):** veja [Estabilização](estabilizacao.md). O menu tem um
 contador compacto (falhas + atenção, `99+`), com divisão na tela e indisponibilidade

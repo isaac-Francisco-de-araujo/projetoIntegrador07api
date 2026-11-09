@@ -18,12 +18,18 @@ permissões, teste com dois navegadores e implantação centralizada com HTTPS.
 
 **Etapa E-mail (31/10/2026):** implementada a confirmação manual de recebimento ao
 motorista, com conferência persistida, histórico idempotente e SMTP OAuth2 condicional.
-O padrão continua **SIMULADO**. A conta pessoal/corporativa ainda precisa ser
-identificada; ativação REAL e homologação externa dependem da autorização e da
-configuração externa da conta. O login protegido já está disponível; isso não ativa
+O padrão continua **SIMULADO**. O uso da conta Outlook da empresa foi informado;
+plataforma Microsoft, tenant e políticas SMTP ainda precisam ser confirmados.
+Ativação REAL e homologação dependem da autorização e da configuração externa da
+conta. O login protegido já está disponível; isso não ativa
 SMTP real. Nenhum e-mail externo foi enviado.
 Veja [o contrato da confirmação ao motorista](docs/confirmacao-motorista.md).
 As correções anteriores foram preservadas: [relatório da estabilização](docs/estabilizacao.md).
+
+**Regra comercial atual:** documentos e fatura são enviados **ao cliente**, com
+seleção e destinatário explícitos. Não há e-mail de motorista informado; confirmação
+ao motorista é opcional e não bloqueia importação. Download no Outlook e upload do
+ZIP são manuais, e o CT-e de um PDF é identificado abrindo o documento.
 
 ### Documento geral do projeto
 
@@ -58,6 +64,21 @@ consulte este README e os contratos de uso compartilhado e da Etapa E-mail.
 - [Documentação complementar](#documentação-complementar)
 
 ## Atualizações da versão atual
+
+### Revisão de pendências e preparação operacional — 09/11/2026
+
+Comparados o local `1b90b50` e `origin/main` `5dcc237`, preservando o commit local
+ainda não publicado. Reproduzido o bloqueio do bootstrap antigo por falha de módulo
+Saúde; o fluxo ZIP atual passou sob falhas de Saúde, Busca e Administração, sem
+ignorar sessão/contrato ou associações obrigatórias. O episódio com um pacote
+operacional específico continua sem causa determinada por falta de evidência própria.
+
+Corrigido o resumo de Configurações para separar envio **documental ao cliente**
+da confirmação opcional. Regras comerciais, OAuth2 externo, instalação central,
+encerramento e evidências distintas de backup/restauração foram alinhados ao código.
+Validação desta revisão: **389 testes JUnit (388 aprovados, 1 ignorado)**, uso diário
+14 grupos, uso compartilhado 10, arquivos/páginas 10 e zoom real 100/150/200%.
+Veja [reprodução, capturas, testes e pendências reais](docs/revisao-operacional-20261109.md).
 
 ### Revisão integrada da interface — 09/11/2026
 
@@ -1028,9 +1049,9 @@ fracionários em campos inteiros, para manter os contratos de entrada explícito
    os ZIPs. Salvar o endereço não configura senha nem autenticação SMTP.
 3. Selecione uma subpasta da raiz autorizada do backend ou use **Criar subpasta**.
 4. Escolha se deseja **Copiar automaticamente após nova importação concluída** e
-   clique em **Salvar configurações**. O sucesso só aparece após resposta do servidor.
-5. Use **Testar acesso e gravação** e **Testar em modo simulado**. O destinatário do
-   teste é separado e vale apenas para a simulação. Os resultados ficam persistidos.
+    clique em **Salvar alterações**. O sucesso só aparece após resposta do servidor.
+5. Use **Verificar pasta** quando necessário. Testes administrativos e seus históricos
+   ficam recolhidos; **Verificar configuração sem envio** não autentica a conta.
 
 Alterações não salvas são identificadas e desabilitam os testes até serem salvas.
 Com segurança ativa, a configuração exige ADMIN e CSRF. Em desenvolvimento isolado,
@@ -1040,8 +1061,9 @@ compartilhado em rede. O perfil operacional usa login individual.
 ### Endereços e eventos separados
 
 - **Remetente da operação:** conta Outlook configurada na aba.
-- **Destinatário da confirmação:** motorista informado explicitamente pelo operador
-  em **Importar ZIP → E-mail do motorista para confirmação**, corrigível na conferência.
+- **Destinatário da confirmação opcional:** só é informado explicitamente quando
+  houver endereço disponível e decisão de usar esse recurso. A operação atual não
+  possui e-mail de motorista e não precisa dele para importar.
 - **Destinatário dos documentos do cliente:** permanece no fluxo da Central de
   envios, sem substituição pelo remetente ou pelo destinatário da confirmação.
 
@@ -1052,11 +1074,11 @@ A seção **Confirmação de recebimento ao motorista** prepara e confirma uma m
 manual por recebimento. Os eventos abaixo são contexto, não vários e-mails reais.
 Tentativas manuais usam `CONFIRMACAO_MOTORISTA` no histórico de notificações existente.
 
-O painel permite autorizar a **simulação dos avisos desta operação** ou simular
-individualmente um aviso pendente. **Ver avisos**, no pacote importado, consulta
-o histórico. Nenhuma dessas ações envia e-mail real, mesmo quando o transporte
-documental está configurado como REAL. Credenciais continuam externas, sem campo
-de senha e sem armazenamento de senha pela interface.
+Os contratos legados de avisos simulados e seus registros foram preservados. A
+interface cotidiana consulta esse histórico recolhido como **Eventos internos —
+testes sem envio**; ferramentas de teste ficam na administração. Esses eventos
+não enviam mensagens reais, mesmo com transporte documental REAL. Credenciais
+continuam externas, sem campo ou armazenamento de senha pela interface.
 
 Os eventos são registrados separadamente: `ARQUIVO_RECEBIDO`,
 `CONFERENCIA_CONCLUIDA`, `IMPORTACAO_CONCLUIDA`, `EXPORTACAO_CONCLUIDA` e
@@ -1125,24 +1147,25 @@ Contrato, recuperação, testes e instruções completas em
 
 ## Confirmação de recebimento ao motorista
 
-1. Baixe o ZIP manualmente pelo Outlook e selecione-o no RotaBrasil.
-2. Informe **E-mail do motorista para confirmação**. O backend valida um único
-   endereço; não o extrai do ZIP nem o substitui pelo cliente do CT-e.
-3. Confira/processe o pacote pelo fluxo existente. A confirmação pode informar
-   recebimento ou pendências sem declarar importação bem-sucedida indevidamente.
-4. Na seção de recebimento, revise/corrija o endereço e use **Conferir confirmação
-   ao motorista**. Confira remetente, destinatário, assunto, corpo, pacote e modo.
-5. Marque a autorização explícita e confirme a simulação ou o envio REAL disponível.
-6. Consulte a tentativa no recebimento, em **Ver avisos** ou na Central de Pendências.
-   `ACEITO_SMTP` não significa entregue/lido. Falha do e-mail preserva a importação
-   e a exportação. Reenvio deliberado exige nova conferência vinculada à tentativa anterior.
+Recurso **opcional**, independente do envio documental. Não há endereço de motorista
+na operação informada, portanto importe normalmente sem preenchê-lo. O recurso e
+seus históricos continuam acessíveis na seção recolhida do recebimento e por
+**Ver avisos**. Caso futuramente haja destinatário e decisão de usar o canal:
+
+1. Revise o endereço explícito; o backend não o extrai do ZIP nem usa o cliente do CT-e.
+2. Confira remetente, destinatário, assunto, corpo, pacote e modo. Preparar não envia.
+3. Só confirme um envio disponível com autorização específica. Sem transporte real
+   configurado, o fluxo cotidiano fica indisponível; não há envio real automático.
+4. Consulte o resultado. `ACEITO_SMTP` não comprova entrega/leitura; falha não desfaz
+   importação/exportação. Reenvio exige nova conferência vinculada à tentativa anterior.
 
 O padrão é `rotabrasil.notificacoes.modo=SIMULADO`. O modo REAL requer ativação
 externa, segurança ativa, sessão OPERADOR/ADMIN, CSRF, tipo de conta identificado,
 remetente compatível e OAuth2/XOAUTH2. O token é fornecido por arquivo externo protegido,
 renovado por ferramenta de identidade externa; não é recebido no painel ou em argumentos
-de comandos. A conta ainda não foi identificada nesta entrega, e nenhum envio externo
-foi executado. Não existe fallback silencioso para simulação ou autenticação básica.
+de comandos. Uso empresarial foi informado, mas plataforma/tenant e autorização
+ainda não foram homologados; nenhum envio externo foi executado. Não existe
+fallback silencioso para simulação ou autenticação básica.
 
 Em Configurações, **Conferir teste REAL** só fica disponível com pré-requisitos
 válidos. ADMIN revisa uma mensagem sintética e confirma aquele teste explicitamente.
@@ -1156,6 +1179,10 @@ recuperação em [Etapa E-mail — confirmação ao motorista](docs/confirmacao-
 
 Esta seção trata do **envio documental ao cliente**, independente da confirmação
 ao motorista descrita acima. Ativar a confirmação REAL não ativa este modo REAL.
+Sem transporte real configurado, a Central mostra **Envio não configurado** e não
+habilita uma ação de envio que apenas simularia. O destinatário e os anexos são
+escolhidos explicitamente; fatura compartilhada não define quem deve recebê-la.
+Consulte [preparação Microsoft e homologação futura](docs/envio-manual.md#preparação-microsoft-para-homologação-futura).
 
 O painel utiliza a conferência persistida, com leitura dos arquivos, validação de
 integridade e snapshot de destinatário/anexos. A confirmação recebe o ID da
@@ -1409,7 +1436,7 @@ navegador foi concluído na evolução V14; resultados atuais em
 
 ## Limitações e próximos passos
 
-1. **Homologação externa da confirmação:** identificar tipo de conta Outlook, autorizar OAuth2 restrito a envio, fornecer/renovar token externo e aprovar um teste específico de remetente/destinatário/mensagem. Código implementado; envio externo não executado.
+1. **Homologação documental Microsoft:** confirmar plataforma/tenant/políticas da caixa Outlook da empresa, autorizar OAuth2 restrito a envio, fornecer/renovar token externo e aprovar remetente/destinatário/conteúdo/anexos de um teste específico. Confirmação ao motorista é opcional; não é requisito comercial.
 2. **Implantação no ambiente de uso:** verificar separadamente o esquema V14 do banco e o acesso à pasta externa; migração operacional exige autorização e backup verificado.
 3. **Documentos recentes globais:** dependem de consulta unificada com tipo, viagem, data de processamento e estado; esses metadados não estão completos nos DTOs atuais.
 4. **Escala das consultas:** paginação/filtros/ordenação estão no servidor; busca de substring ainda pode exigir varredura SQL. Seletores são limitados e permitem pesquisa explícita.
@@ -1426,6 +1453,7 @@ descritos neste README e nos contratos específicos.
 
 | Documento | Assunto |
 | --- | --- |
+| [Revisão operacional — 09/11/2026](docs/revisao-operacional-20261109.md) | Comparação Git, reprodução ZIP, correção do resumo documental, capturas, testes, instalação e pendências reais |
 | [Uso diário compartilhado](docs/uso-compartilhado.md) | Login, operadores, concorrência, fila, busca, saúde, contratos V14 e implantação centralizada |
 | [Visão geral do sistema — 21/10/2026](docs/visao-geral-do-sistema.md) | Levantamento histórico e diagramas, também em PDF e Word |
 | [Etapa E-mail — confirmação ao motorista](docs/confirmacao-motorista.md) | Mensagem manual, Microsoft OAuth2, configuração segura, conferência, idempotência, reenvio, V11, testes e homologação pendente |

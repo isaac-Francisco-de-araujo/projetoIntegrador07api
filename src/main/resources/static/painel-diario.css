@@ -35,12 +35,12 @@ html[data-tema="claro"] .zip-problems li { color: #a22120; }
 .file-diagnostic { padding: 8px 12px; }
 .notice.error, .error { color: #ffb4af; }
 .notice.attention { color: #f5ce77; }
-#estado-configuracoes.attention { color: #f5ce77; }
+#estado-configuracoes.attention, #config-situacao-email.attention { color: #f5ce77; }
 #inicio .section-help { color: #bac9bf; }
 html[data-tema="claro"] #inicio .section-help { color: #475e4c; }
 html[data-tema="claro"] .notice.error, html[data-tema="claro"] .error { color: #a22120; }
 html[data-tema="claro"] .notice.attention { color: #784b00; }
-html[data-tema="claro"] #estado-configuracoes.attention { color: #784b00; }
+html[data-tema="claro"] #estado-configuracoes.attention, html[data-tema="claro"] #config-situacao-email.attention { color: #784b00; }
 :focus-visible { outline: 3px solid var(--accent, #88bfee); outline-offset: 3px; }
 #inicio .filters { display:flex; flex-wrap:wrap; align-items:end; border:0; background:transparent; padding:0; }
 #inicio .filters label { flex:1 1 200px; min-width:0; }

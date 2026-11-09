@@ -8,7 +8,7 @@ Os contratos e resultados históricos abaixo são preservados.
 **Evolução V10:** [Diagnóstico e Recuperação](diagnostico-recuperacao.md) amplia a
 exibição dos resultados, centraliza pendências e preserva cada tentativa de cópia.
 A recuperação da exportação apenas registra eventos; não executa seu transporte.
-O código atual exige V11, com migração operacional separadamente autorizada.
+O código atual exige V14, com migração operacional separadamente autorizada.
 
 **Etapa E-mail V11:** [Confirmação manual ao motorista](confirmacao-motorista.md)
 implementa conferência, correção de destinatário, tentativa idempotente e reenvio no
@@ -19,7 +19,20 @@ o padrão continua SIMULADO. Os capítulos V9 abaixo descrevem os avisos interno
 antigo com estáticos atuais sobrepostos. `GET /api/versao` identifica contrato,
 build e hashes do empacotamento; a inicialização detecta backend incompatível.
 
-## Decisão confirmada
+## Regra atual confirmada — 09/11/2026
+
+A conta Outlook **da empresa** será remetente dos documentos e da fatura para o
+**cliente**, após seleção e conferência explícitas. Download/upload de ZIP permanecem
+manuais. Não existe e-mail de motorista informado: confirmação ao motorista é
+opcional, independente e nunca requisito para importar. Não se presume destinatário
+de fatura compartilhada. A identificação do CT-e no PDF é visual/manual.
+
+O resumo da conta em Configurações agora usa o **modo documental** e sua situação
+de remetente, sem confundi-los com a prontidão do canal opcional. Conta salva não
+significa autenticada; modo REAL local não comprova conectividade/entrega. Confira
+[pré-requisitos e roteiro Microsoft](envio-manual.md#preparação-microsoft-para-homologação-futura).
+
+### Decisão histórica V9 (substituída pela regra acima)
 
 A conta Outlook da operação recebe os ZIPs e será o **remetente** da confirmação
 ao remetente original da mensagem. Não é um destinatário interno fixo. Nesta
@@ -34,26 +47,25 @@ da conta e do acesso protegido. O transporte documental e suas proteções foram
 
 ## Usar a aba Configurações
 
-A oitava tela fica em `/#configuracoes`, no menu e na central de atalhos.
+A tela fica em `/#configuracoes`, no menu administrativo e na central de atalhos.
 
 1. Informe o remetente da operação.
 2. Escolha uma subpasta existente da raiz autorizada ou use **Criar subpasta**.
 3. Ative/desative **Copiar automaticamente após nova importação concluída**.
-4. Clique em **Salvar configurações** e aguarde a confirmação do backend.
-5. Teste a pasta e faça um teste simulado de e-mail, informando um destinatário de teste.
+4. Clique em **Salvar alterações** e aguarde a confirmação do backend.
+5. Use **Verificar pasta** quando necessário. Ferramentas e histórico de testes
+   ficam recolhidos na área administrativa; teste sem envio não comprova autenticação.
 
 Configuração e resultados de testes persistem no banco. Alterações ainda não
 salvas são sinalizadas; testes são bloqueados enquanto houver essas alterações.
 Uma falha de gravação não mostra sucesso. Controle de versão impede sobrescrever
 silenciosamente uma configuração alterada por outra requisição.
 
-Não foi criada tela de login ou gestão de usuários. O painel local é acessado
-sem login no perfil `desenvolvimento`, mantendo loopback e banco/acervo isolados.
-O backend já contém segurança para o perfil `operacao`; ela permanece ativa nesse
-perfil. Quando habilitada, as configurações exigem ADMIN/CSRF e exportações e
-simulações exigem OPERADOR/ADMIN. A ausência de formulário de login utilizável
-na interface atual não autoriza remover essas restrições ou publicar o modo local
-sem autenticação em uma rede compartilhada.
+Login individual e gestão de operadores **já existem** no mesmo frontend/backend.
+Configurações exigem ADMIN e CSRF em `operacao`; importação/exportação exigem
+OPERADOR/ADMIN. O painel sem login em `desenvolvimento` é somente loopback com
+banco/acervo isolados, não o modo de instalação compartilhada. Veja
+[login e implantação centralizada](uso-compartilhado.md).
 
 ## Raiz autorizada: pasta do backend
 

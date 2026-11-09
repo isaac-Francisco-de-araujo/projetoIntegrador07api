@@ -1,5 +1,10 @@
 # Uso diário simplificado — 03/11/2026
 
+**Revisão operacional de 09/11/2026:** [resultados atuais](revisao-operacional-20261109.md),
+com comparação Git/bootstrap, ZIP funcional em H2 isolado, correção do resumo
+documental, regra comercial ao cliente, preparação central e testes de backup V14.
+Os resultados abaixo conservam suas execuções históricas e não são somados aos atuais.
+
 ## Complemento: erros do ZIP e títulos da fila — 09/11/2026
 
 Preservando a simplificação e as revisões locais abaixo:

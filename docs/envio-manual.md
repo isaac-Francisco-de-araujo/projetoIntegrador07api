@@ -1,5 +1,78 @@
 # Envio manual auditável em SIMULAÇÃO
 
+## Regra atual: envio documental ao cliente — 09/11/2026
+
+O destinatário comercial é o **cliente**. O remetente é a conta Outlook da empresa;
+download do ZIP no Outlook e upload no RotaBrasil são manuais. Não há e-mail de
+motorista informado nem leitura automática de caixa/contatos. Confirmação ao
+motorista permanece opcional e separada, sem bloquear importação.
+
+1. Selecione e confira o ZIP; abra os PDFs para identificar o CT-e e escolha os
+   vínculos e a finalidade de cada arquivo. Confirme a importação integral.
+2. Em Viagens, selecione explicitamente os documentos ativos e a fatura destinados
+   àquela operação. Na Central de envios, informe o endereço do cliente e confira
+   viagem, destinatário e anexos antes de confirmar uma mensagem disponível.
+3. Fatura compartilhada não define destinatário: não selecione outros clientes,
+   viagens ou anexos por inferência. Uma tentativa não envia automaticamente às
+   outras viagens vinculadas.
+
+Sem modo documental REAL configurado externamente, a interface mostra **Envio não
+configurado** e não habilita um botão de envio para simulação. O histórico distingue
+Teste sem envio, aceite do provedor (sem comprovar entrega/leitura), falha conhecida
+e resultado desconhecido. Configuração salva e teste local não autenticam a conta.
+
+Os capítulos V7 seguintes são históricos. O adaptador real **já existe** em
+`TransporteSmtp`/`ConfiguracaoSmtp`; o código atual exige V14. Nenhum transporte real
+foi ativado ou chamado nesta revisão. As APIs de teste e os registros anteriores
+permanecem, com idempotência, snapshot, associação explícita e controle de acesso.
+
+### Preparação Microsoft para homologação futura
+
+- O adaptador suporta **XOAUTH2** com `SMTP.Send` delegado, STARTTLS obrigatório,
+  verificação de identidade do servidor e timeouts. BASIC existe por compatibilidade
+  de outros contratos, mas não é uma autorização ou recomendação para a conta Microsoft.
+- Confirmar com o administrador se a caixa é Exchange Online/Microsoft 365, caixa
+  compartilhada, conta pessoal usada pela empresa ou outro serviço exibido no Outlook.
+  Para Exchange Online, confirmar tenant, SMTP AUTH/políticas da caixa e permissões
+  do remetente. Não desativar políticas nem escolher Graph/outro transporte como atalho.
+- Identificados Microsoft 365 e suporte a SMTP OAuth2: host `smtp.office365.com`,
+  porta 587; Outlook.com pessoal: `smtp-mail.outlook.com`, porta 587. Não aplicar
+  o exemplo de um tipo ao outro por suposição.
+- Aquisição e renovação são **externas ao RotaBrasil**: aplicação registrada/consentida
+  para o tipo de conta, escopo delegado `https://outlook.office.com/SMTP.Send` e,
+  quando aprovado para renovação, `offline_access`. O utilitário de identidade
+  aprovado obtém a autorização interativa e renova fora do backend. Nenhum utilitário
+  de aquisição/renovação ou agendamento está implementado no repositório; o backend
+  apenas consome o contrato de arquivo de [TokenSmtpExterno](confirmacao-motorista.md#fornecimento-seguro-e-renovação).
+- Esse arquivo contém `access_token` e `expires_at`, fica fora de Git/acervo/backups
+  documentais, protegido para a conta de serviço, e deve ser renovado/publicado
+  atomicamente. Leitura por uso, limite de 32 KiB e margem de 60 s são verificações
+  locais; não comprovam escopo/consentimento efetivo no provedor. Refresh token fica
+  sob responsabilidade da ferramenta externa, não deve ser adicionado ao painel.
+- A futura configuração documental usa `rotabrasil.email.modo=REAL`,
+  `rotabrasil.email.smtp.ativado=true`, `.autenticacao=XOAUTH2`, `.host`, `.porta`,
+  `.usuario`, `.remetente`, `.oauth2.token-arquivo` e `.timeout-ms` externos;
+  requer sessão protegida e H2 em arquivo com `WRITE_DELAY=0`. **Não aplicar agora.**
+  `rotabrasil.notificacoes.modo=SIMULADO` pode permanecer assim: o canal opcional
+  não precisa ser ativado para o envio documental. O endereço salvo em Configurações
+  deve ser conferido contra o remetente externo; divergência é mostrada como erro.
+
+Roteiro futuro de homologação, sob autorização específica:
+
+1. Administrador confirma tipo/tenant, políticas, remetente e autorização externa.
+2. Homologar em ambiente protegido isolado, sem documentos reais. Aprovar remetente,
+   destinatário controlado, conteúdo e anexos sintéticos de **uma mensagem específica**.
+3. Conferir o modo e snapshot antes da confirmação manual. Não reutilizar teste da
+   confirmação opcional como prova de envio de anexos documentais.
+4. Registrar resultado conhecido, aceite SMTP e recebimento observado separadamente.
+   Resultado desconhecido exige consulta humana, sem repetição automática.
+5. Exercitar expiração/renovação e revogação externa sem expor credenciais; só então
+   decidir, com o responsável, a liberação para documentos reais.
+
+Pergunta pendente: **a caixa Outlook da empresa é do Microsoft 365/Exchange Online,
+e quem é o administrador que pode confirmar a política SMTP AUTH e autorizar a aplicação?**
+Não enviar senha/token no chat. Testes locais não homologam a conta da empresa.
+
 **Interface atual (03/11/2026):** [uso diário simplificado](uso-diario-simplificado.md).
 Sem transporte real configurado, o fluxo cotidiano mostra **Envio não configurado**
 e mantém a ação indisponível. Históricos identificam testes sem envio. Os contratos
@@ -11,7 +84,7 @@ documental real já implementado, com ativação/configuração externas. A
 notificações somente simuladas, separadas do destinatário e dos anexos do cliente.
 Os resultados e limitações de implementação V7 abaixo conservam seu contexto histórico.
 
-## Fluxo atual (V7)
+## Fluxo histórico (V7)
 
 O painel existente em `/` permite importar ZIP, associar PDFs manualmente,
 selecionar uma viagem, destinatário e anexos, conferir e **Simular envio**.

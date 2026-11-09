@@ -28,6 +28,12 @@ A entrada tem três passos; inspeção continua separada da confirmação transa
 é opcional e não bloqueia importação sem e-mail. Os capítulos anteriores abaixo
 preservam seus contratos e evidências históricas.
 
+**Regra atual (09/11/2026):** download no Outlook da empresa e upload do ZIP são
+manuais; abra os PDFs para identificar o CT-e e associe explicitamente. Documentos
+e fatura destinam-se ao cliente escolhido na Central de envios. Não há e-mail de
+motorista disponível nem destinatário inferido por fatura. Veja a
+[reprodução comparativa e os resultados atuais](revisao-operacional-20261109.md).
+
 ### Verificação local de 02/11/2026
 
 A conferência não grava os documentos: cada PDF exige finalidade e viagens
@@ -48,7 +54,7 @@ Os PDFs agora têm [prévia no painel e revisão visual em cópia](previa-e-revi
 com páginas, zoom e geração de ZIP revisado para nova conferência. Os vínculos
 continuam manuais e o XML não é alterado pelas revisões do PDF.
 
-1. Em **Importar ZIP**, escolha o arquivo e clique em **Conferir ZIP**. Esta
+1. Em **Importar ZIP**, escolha o arquivo e clique em **Conferir arquivos**. Esta
    operação identifica as viagens pelo XML e mostra nomes, clientes e quantidades,
    sem gravar clientes, viagens, documentos ou arquivos definitivos.
 2. Para cada PDF, escolha a finalidade e marque os CT-es correspondentes:
@@ -58,8 +64,10 @@ continuam manuais e o XML não é alterado pelas revisões do PDF.
 3. **Confirmar importação** revalida os mesmos bytes e grava todos os XMLs/PDFs
    em uma transação. Falhas desfazem os registros e as publicações próprias.
 4. Escolha uma viagem, selecione os XMLs/PDFs ativos e informe o destinatário
-   para gerar a conferência de envio simulado. Uma fatura compartilhada aparece em todas as viagens
-   vinculadas. Seleções são limpas ao trocar de viagem ou atualizar os dados.
+   para gerar a conferência documental quando o transporte estiver disponível.
+   Sem envio real configurado, a ação cotidiana fica indisponível. Uma fatura
+   compartilhada aparece em todas as viagens vinculadas e não define destinatário.
+   Seleções são limpas ao trocar de viagem ou atualizar os dados.
 5. **Arquivar** um PDF preserva registro, vínculos e bytes, retirando-o da lista
    ativa e da prévia em todas as viagens vinculadas. O filtro de arquivados permite
    restaurar. Não existe exclusão física do arquivo.

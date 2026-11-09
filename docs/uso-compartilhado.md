@@ -157,6 +157,10 @@ sem afirmar qual componente foi diagnosticado e sem reutilizar dados antigos com
 
 ## Implantação centralizada
 
+**Preparação revisada em 09/11/2026:** os testes usam instâncias locais descartáveis,
+navegadores independentes e, no roteiro diário, HTTPS com certificado sintético.
+Isso não valida a instalação, o certificado, a rede ou as permissões da empresa.
+
 Um processo/backend central serve todos os navegadores; apenas esse backend acessa
 o H2. Não compartilhar o arquivo H2 entre PCs nem ativar H2 TCP/Console. Banco e
 acervo ficam fora do checkout. A exportação usa pasta do servidor ou rede autorizada,
@@ -190,7 +194,73 @@ Etapa E-mail permanece independente: nenhum SMTP real é ativado por login.
    confiar headers encaminhados de proxy controlado, que substitua os recebidos.
 6. Fornecer aos PCs a URL HTTPS central e contas individuais. Validar cookies
    Secure/HttpOnly/SameSite, logout, permissões, pasta do backend e o roteiro acima.
-   Nenhum PC cliente recebe acesso direto ao H2, ao acervo ou às credenciais SMTP.
+    Nenhum PC cliente recebe acesso direto ao H2, ao acervo ou às credenciais SMTP.
+
+### Inicialização, aceite e encerramento controlados
+
+Preparar no servidor, após definição do responsável, um serviço/supervisor da
+plataforma que execute **um único JAR empacotado** como conta de serviço. Fixar
+diretório de trabalho, Java 25 e arquivo de propriedades externo com ACL privada.
+Não servir arquivos estáticos de um checkout sobre um JAR de outra revisão.
+Reinício do serviço não deve executar migração, restore ou reenvio.
+
+Configuração não sensível a conferir com a equipe de infraestrutura:
+
+```properties
+spring.profiles.active=operacao
+server.address=127.0.0.1
+server.shutdown=graceful
+spring.jpa.hibernate.ddl-auto=validate
+spring.flyway.enabled=false
+spring.flyway.baseline-on-migrate=false
+spring.flyway.clean-disabled=true
+spring.h2.console.enabled=false
+server.servlet.session.cookie.secure=true
+server.servlet.session.cookie.http-only=true
+server.servlet.session.cookie.same-site=strict
+rotabrasil.email.modo=SIMULADO
+rotabrasil.notificacoes.modo=SIMULADO
+rotabrasil.email.smtp.ativado=false
+```
+
+Esse trecho não é uma instalação pronta: URL JDBC externa com `IFEXISTS=TRUE` e
+`WRITE_DELAY=0`, credenciais, acervo, raiz de exportação, conta inicial, proxy e
+certificado precisam ser provisionados pela equipe. Não copiar H2 aberto nem
+liberar o console para conferir versão. Com backend parado, ler o histórico via
+conexão offline autorizada/somente leitura, verificando sucesso e versão V14:
+
+```sql
+SELECT "version", "description", "success"
+FROM "flyway_schema_history" ORDER BY "installed_rank";
+```
+
+A aplicação também recusa esquema incompatível ao iniciar; a aprovação de uma
+base sintética não informa a versão da base operacional. As migrações só podem ser
+aplicadas separadamente após autorização e backup verificado.
+
+No aceite da instalação central, registrar evidências privadas de:
+
+1. URL HTTPS confiável em cada PC autorizado, cadeia do certificado e cookie de
+   sessão Secure/HttpOnly/SameSite; o proxy deve substituir headers de origem e
+   impedir acesso direto ao backend a partir da rede cliente.
+2. Login de ADMIN/OPERADOR/CONSULTA, recusa de API anônima, de escrita por CONSULTA e
+   de alteração sem CSRF, sem alterar as regras do backend para o teste.
+3. Contrato/hashes em `/api/versao` da mesma distribuição, consulta de Saúde e
+   teste explícito da pasta pela conta efetiva do serviço. Abrir Saúde não envia
+   e-mail, não cria backup nem faz varredura documental.
+4. ZIP **sintético** completo, associação, resultado persistido e exportação/retomada;
+   dois perfis independentes disputando responsabilidade e edição com versão.
+5. Encerramento pelo comando normal do serviço ou Ctrl+C em console controlado;
+   aguardar término das requisições e do processo antes de backup/substituição do JAR.
+   Ajustar o prazo de shutdown à operação e à infraestrutura; não matar processos
+   Java desconhecidos nem presumir cancelamento por fechar a aba.
+6. Reinício controlado com a mesma base V14/acervo e Flyway desligado, conferindo
+   registros e resultados desconhecidos sem repetir operações automaticamente.
+
+Destino/frequência/responsável/retenção de backup e janela de parada precisam ser
+definidos pela empresa; não há agendamento ou exclusão automática nesta revisão.
+As evidências de backup criado, integridade verificada e restauração testada são
+[separadas](etapa4-banco-migracoes.md#evidências-separadas-e-teste-v14--09112026).
 
 ## Verificação da entrega
 
