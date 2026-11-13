@@ -22,7 +22,7 @@ def main():
     args=parser.parse_args()
     root=Path(__file__).resolve().parent.parent
     output=args.saida.resolve();output.mkdir(parents=True,exist_ok=True)
-    xml=(root/'src/main/resources/email/cte-sintetico.xml').read_text()
+    xml=(root/'back/src/main/resources/email/cte-sintetico.xml').read_text()
     chave='35250412345678000195570020000662131001747719'
     base=chave[:25]+'000066214'+chave[34:43]
     soma=sum(int(c)*(2+i%8) for i,c in enumerate(reversed(base)))

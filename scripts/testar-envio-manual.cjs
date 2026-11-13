@@ -67,7 +67,7 @@ async function main() {
   await page.goto(url, { waitUntil: 'networkidle' });
   await page.locator('#abertura').waitFor({state:'hidden'});await navegar('pacotes');
   await expect(page.locator('#recuperar-confirmacao')).toBeHidden();
-  const xml = fs.readFileSync(path.join(root, 'src/main/resources/email/cte-sintetico.xml'), 'utf8');
+  const xml = fs.readFileSync(path.join(root, 'back/src/main/resources/email/cte-sintetico.xml'), 'utf8');
   const chave = '35250412345678000195570020000662131001747719';
   const nova = chave.slice(0, 25) + '000066214' + chave.slice(34, 43);
   let soma = 0; [...nova].reverse().forEach((c, i) => { soma += Number(c) * (2 + i % 8); });

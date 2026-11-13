@@ -1,5 +1,10 @@
 # Configurações da operação, exportação e notificações — V9
 
+**Aceite atual (11/11/2026):** [preparação compartilhada/Gmail](preparacao-compartilhada-gmail-20261111.md).
+Gmail foi escolhido para testes administrativos independentes; o canal Microsoft
+existente foi preservado. Configurações/exportação: 7 grupos de navegador aprovados
+com pasta sintética, hard links, SHA-256, fatura única, indisponibilidade e reinício.
+
 **Interface atual (03/11/2026):** [uso diário simplificado](uso-diario-simplificado.md).
 Configurações resume conta, pasta e cópia; requisitos/testes ficam recolhidos e
 restritos. Confirmação ao motorista é opcional, sem exigir endereço para importar.

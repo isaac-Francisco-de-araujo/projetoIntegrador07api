@@ -34,7 +34,7 @@ async function run(){
   await page.goForward();await page.waitForFunction(()=>document.querySelector('main').dataset.paginaAtual==='processamentos');
   checks.push('Sete páginas isoladas, menu ativo, títulos, links diretos e voltar/avançar do navegador');
 
-  const xml=fs.readFileSync(path.join(root,'src/main/resources/email/cte-sintetico.xml'),'utf8');
+  const xml=fs.readFileSync(path.join(root,'back/src/main/resources/email/cte-sintetico.xml'),'utf8');
   const key='35250412345678000195570020000662131001747719';assert.ok(xml.includes(key));
   const keyBase=key.slice(0,25)+'000066214'+key.slice(34,43);let sum=0;[...keyBase].reverse().forEach((c,i)=>sum+=Number(c)*(2+i%8));const dv=11-sum%11;
   const secondXml=xml.replaceAll(key,keyBase+(dv>=10?0:dv)).replace('<nCT>66213</nCT>','<nCT>66214</nCT>');

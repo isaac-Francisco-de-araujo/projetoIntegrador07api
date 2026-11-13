@@ -1,5 +1,12 @@
 # Etapa 4 — Inventário, backup, migrações e concorrência
 
+**Revalidação de 11/11/2026:** esquema exigido continua **V15**, sem migração nova.
+As 15 migrações publicadas foram comparadas com `HEAD` após a mudança para `back/`
+e preservadas. `MigracaoEBackupTest`: 17 testes aprovados na suíte atual, incluindo
+restauração V15 sintética e comparação de inventário/vínculos/bytes sem os originais.
+Isso não informa a versão ou integridade de qualquer banco operacional.
+[Comandos e evidências atuais](preparacao-compartilhada-gmail-20261111.md).
+
 **Código atual V15:** [uso compartilhado](uso-compartilhado.md). V12–V15 acrescentam
 versões, responsabilidades, índices e conta de teste sem segredos; o inventário inclui essas tabelas. Nenhuma base
 operacional foi migrada nesta evolução. O restante registra as etapas anteriores.

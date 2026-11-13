@@ -25,7 +25,7 @@ async function run(){
   async function get(rota){const r=await page.request.get(url+rota);assert.equal(r.status(),200);return r.json();}
   async function navegar(hash){await page.evaluate(h=>{location.hash=h;},hash);await page.waitForFunction(h=>document.querySelector('main').dataset.paginaAtual===h,hash);}
   await page.goto(url,{waitUntil:'networkidle'});await page.locator('#abertura').waitFor({state:'hidden'});
-  const xml=fs.readFileSync(path.join(root,'src/main/resources/email/cte-sintetico.xml'),'utf8');
+  const xml=fs.readFileSync(path.join(root,'back/src/main/resources/email/cte-sintetico.xml'),'utf8');
   const key='35250412345678000195570020000662131001747719';
   const base=key.slice(0,25)+'000066214'+key.slice(34,43);let soma=0;[...base].reverse().forEach((c,i)=>soma+=Number(c)*(2+i%8));const dv=11-soma%11;
   const secondXml=xml.replaceAll(key,base+(dv>=10?0:dv)).replace('<nCT>66213</nCT>','<nCT>66214</nCT>')

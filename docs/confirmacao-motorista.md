@@ -9,7 +9,7 @@ requisito comercial nem etapa obrigatória de seleção, conferência ou importa
 Não há disparo real automático. Download no Outlook e upload do ZIP são manuais;
 o CT-e de um PDF é identificado abrindo o documento, sem associação inferida.
 
-O código atual exige **V14**, e login/permissões já existem e foram exercitados em
+O código atual exige **V15**, e login/permissões já existem e foram exercitados em
 ambiente isolado. O 404 de `/login`, esquema V11 e roteiros de simulação abaixo são
 registros da entrega histórica V11, não impedimentos atuais comprovados. Na interface
 cotidiana, envio sem transporte real configurado fica indisponível; testes ficam na
@@ -19,6 +19,10 @@ Para o envio documental ao cliente, consulte o [contrato atualizado](envio-manua
 e a [preparação Microsoft](envio-manual.md#preparação-microsoft-para-homologação-futura).
 "Outlook da empresa" ainda não identifica plataforma, tenant, modalidade da caixa
 e políticas de SMTP. Não se presume credencial básica nem uma conta Microsoft 365.
+
+**Decisão atual de testes:** Gmail administrativo tem [configuração e autenticação
+próprias](gmail-configuravel.md). Não usa OAuth2 Microsoft, não ativa este canal
+opcional e não é requisito para importar. [Aceite isolado de 11/11/2026](preparacao-compartilhada-gmail-20261111.md).
 
 ## Entrega e decisões
 

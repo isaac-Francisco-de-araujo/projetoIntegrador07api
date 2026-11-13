@@ -11,7 +11,7 @@ async function start(jar,antigo=false){
   let atual='';server=spawn('java',['-Xmx512m','-jar',path.resolve(jar),'--server.address=127.0.0.1','--server.port=0','--spring.profiles.active=desenvolvimento',
     '--spring.datasource.url=jdbc:h2:file:'+path.join(isolated,antigo?'antigo':'novo').replaceAll('\\','/')+';WRITE_DELAY=0','--spring.flyway.enabled=true','--spring.h2.console.enabled=false',
     '--rotabrasil.email.modo=SIMULADO','--rotabrasil.arquivos.viagens='+path.join(isolated,antigo?'acervo-antigo':'acervo'),'--rotabrasil.exportacao.raiz='+path.join(isolated,'copias'),
-    ...(antigo?['--spring.web.resources.static-locations=file:'+root.replaceAll('\\','/')+'/src/main/resources/static/']:[])],{cwd:root});
+    ...(antigo?['--spring.web.resources.static-locations=file:'+root.replaceAll('\\','/')+'/front/']:[])],{cwd:root});
   server.stdout.on('data',b=>{atual+=b;logs+=b;});server.stderr.on('data',b=>{atual+=b;logs+=b;});
   for(let i=0;i<1200;i++){const port=atual.match(/Tomcat started on port (\d+)/)?.[1];if(port){url='http://127.0.0.1:'+port;return;}if(server.exitCode!==null)throw Error('Servidor terminou');await wait(100);}throw Error('Inicialização excedeu 120s');
 }

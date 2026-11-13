@@ -27,7 +27,7 @@ async function contraste(locator){return locator.evaluate(el=>{
 });}
 async function run(){
   await iniciar(true);browser=await chromium.launch({channel:process.env.ROTABRASIL_BROWSER_CHANNEL||'chrome',headless:true});await abrir();
-  const xml=fs.readFileSync(path.join(root,'src/main/resources/email/cte-sintetico.xml'),'utf8');
+  const xml=fs.readFileSync(path.join(root,'back/src/main/resources/email/cte-sintetico.xml'),'utf8');
   const pacotes=await page.evaluate(async xml=>{
     const {PDFDocument,StandardFonts}=await import('/webjars/pdf-lib/1.17.1/dist/pdf-lib.esm.min.js');const d=await PDFDocument.create(),font=await d.embedFont(StandardFonts.Helvetica);d.addPage().drawText('PDF SINTETICO - SEM VALOR FISCAL',{x:40,y:700,font,size:14});const pdf=await d.save();
     const {zipSync,strToU8}=await import('/webjars/fflate/0.8.3/esm/browser.js');const arquivos={'ctes/viagem.xml':strToU8(xml),'cobrancas/fatura.pdf':strToU8('invalido'),'outros/fatura.pdf':pdf};

@@ -1,5 +1,6 @@
 # Artefatos gerados e ferramentas locais
 /target/
+/back/target/
 **/node_modules/
 /.opencode/
 /.env
@@ -15,6 +16,7 @@
 /database/*.trace.db
 /database/*.lock.db
 /src/test/resources/*-cte.xml
+/back/src/test/resources/*-cte.xml
 # Configurações pessoais
 /.idea/
 /.vscode/

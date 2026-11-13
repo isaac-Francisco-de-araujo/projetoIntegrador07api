@@ -23,7 +23,7 @@ def main():
     jar = args.jar.resolve(strict=True)
     output = args.saida or Path(tempfile.mkdtemp(prefix='rotabrasil-painel-resultados-'))
     output.mkdir(parents=True, exist_ok=True)
-    xml = (root / 'src/main/resources/email/cte-sintetico.xml').read_bytes()
+    xml = (root / 'back/src/main/resources/email/cte-sintetico.xml').read_bytes()
     checks = []
     errors = []
     with tempfile.TemporaryDirectory(prefix='rotabrasil-painel-banco-') as base:

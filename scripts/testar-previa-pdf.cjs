@@ -17,7 +17,7 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const server = spawn(process.env.JAVA || 'java', ['-jar', path.resolve(jarArg), '--server.port=0', '--server.address=127.0.0.1',
   '--spring.profiles.active=desenvolvimento', '--rotabrasil.seguranca.ativa=false', '--spring.datasource.url=jdbc:h2:mem:pdf_ui',
   '--spring.flyway.enabled=true', '--spring.h2.console.enabled=false', '--rotabrasil.email.modo=SIMULADO',
-  '--rotabrasil.arquivos.viagens='+base+'/viagens', '--spring.web.resources.static-locations=file:'+root.replaceAll('\\','/')+'/src/main/resources/static/'], {cwd:root});
+  '--rotabrasil.email.smtp.ativado=false', '--rotabrasil.arquivos.viagens='+base+'/viagens'], {cwd:root});
 server.stdout.on('data', data => logs += data); server.stderr.on('data', data => logs += data);
 
 function zip(entries) {
@@ -44,7 +44,7 @@ async function run() {
   const page=await browser.newPage({viewport:{width:1440,height:1000},locale:'pt-BR',reducedMotion:'reduce'});
   page.on('pageerror',error=>errors.push(error.message));
   page.on('request',request=>{if(!request.url().startsWith(url)&&!request.url().startsWith('blob:')&&!request.url().startsWith('data:'))external.push(request.url());});
-  await page.goto(url,{waitUntil:'networkidle'});await page.locator('#abertura').waitFor({state:'hidden'});
+  await page.goto(url+'/painel',{waitUntil:'networkidle'});await page.locator('#abertura').waitFor({state:'hidden'});
   await page.locator('.sidebar nav a[href="#pacotes"]').click();
   const pdfs=await page.evaluate(async()=>{
     const {PDFDocument,StandardFonts,rgb,degrees}=await import('/webjars/pdf-lib/1.17.1/dist/pdf-lib.esm.min.js');
@@ -63,7 +63,7 @@ async function run() {
     }
     return result;
   });
-  const xml=fs.readFileSync(path.join(root,'src/main/resources/email/cte-sintetico.xml'));
+  const xml=fs.readFileSync(path.join(root,'back/src/main/resources/email/cte-sintetico.xml'));
   const original=zip([['cte.xml',xml],['faturas/documento.pdf',pdfs[0]],['viagem/documento.pdf',pdfs[1]]]);
   fs.writeFileSync(path.join(output,'pacote-sintetico.zip'),original);
   await page.locator('#arquivo-zip').setInputFiles({name:'pacote-sintetico.zip',mimeType:'application/zip',buffer:original});
@@ -74,7 +74,7 @@ async function run() {
     await page.locator('#vinculo-'+id+' select').selectOption(id==='a1'?'FATURA':'VIAGEM');
     await page.locator('#vinculo-'+id+' input[type=checkbox]').check();
   }
-  assert.equal(await page.locator('#confirmar-zip').isEnabled(),true);
+  assert.equal(await page.locator('#zip-avancar').isEnabled(),true);
   await page.locator('[data-previa-pdf="a1"]').click();
   await page.waitForFunction(()=>document.getElementById('pdf-paginacao').textContent==='Página 1 de 2');
   assert.equal(await page.locator('#pdf-canvas').evaluate(c=>c.width>0&&c.height>0),true);
@@ -91,7 +91,7 @@ async function run() {
   await page.locator('#pdf-adicionar').click();assert.equal(await page.locator('#pdf-lista-correcoes li').count(),2);
   await page.screenshot({path:path.join(output,'editor-desktop.png')});
   await page.locator('#pdf-salvar').click();await page.locator('#editor-pdf').waitFor({state:'hidden'});
-  assert.equal(await page.locator('#confirmar-zip').isDisabled(),true);assert.equal(await page.locator('[data-revisao-pdf="a1"]').textContent(),'Cópia revisada nesta aba');
+  assert.equal(await page.locator('#confirmar-zip').isDisabled(),true);assert.equal(await page.locator('[data-revisao-pdf="a1"]').textContent(),'Revisão pendente de conferência');
   checks.push('Correções de cliente e data em páginas diferentes geram cópia e bloqueiam importação do original');
   const downloadPromise=page.waitForEvent('download');await page.locator('[data-baixar-revisao-pdf="a1"]').click();
   const download=await downloadPromise;assert.equal(download.suggestedFilename(),'documento-revisado.pdf');
@@ -117,10 +117,11 @@ async function run() {
   checks.push('Novo ZIP possui novo hash, mantém XML/PDF não editado idênticos e contém as correções sem reaproveitar vínculos automaticamente');
 
   for(const id of ['a1','a2']){await page.locator('#vinculo-'+id+' select').selectOption(id==='a1'?'FATURA':'VIAGEM');await page.locator('#vinculo-'+id+' input[type=checkbox]').check();}
-  await page.locator('#confirmar-zip').click();await page.waitForFunction(()=>document.getElementById('resumo-zip').textContent.includes('Importação confirmada'));
+  await page.locator('#zip-avancar').click();await page.locator('#confirmar-zip').click();await page.waitForFunction(()=>document.getElementById('zip-resumo-final').textContent.includes('importados'));
   assert.equal((await (await page.request.get(url+'/api/consulta/resumo')).json()).viagens,1);
   assert.equal((await (await page.request.get(url+'/api/viagens/1/anexos')).json()).length,2);
   checks.push('Pacote revisado exige nova associação e só é importado por confirmação explícita');
+  await page.locator('#zip-voltar-conferencia').click();
 
   if(await page.locator('html').getAttribute('data-tema')!=='escuro')await page.locator('#alternar-tema').click();
   await page.setViewportSize({width:390,height:844});

@@ -4,8 +4,9 @@
 
 O RotaBrasil é uma aplicação web para receber **CT-es XML e documentos PDF**, organizar
 os arquivos por viagem, associar faturas, conferir informações e acompanhar tentativas
-de envio de e-mail. Backend, API REST e frontend são distribuídos na mesma aplicação
-Spring Boot.
+de envio de e-mail. O código do frontend fica em **`front/`** e o backend Java,
+configurações e testes em **`back/`**. O Maven reúne os dois na mesma aplicação
+Spring Boot, mantendo a comunicação com a API, login e sessão na mesma origem HTTP.
 
 **Estado documentado:** novembro de 2026 · Java 25 · Spring Boot 3.5.6 · código requer esquema de banco **V15**.
 O modo padrão de e-mail é **SIMULADO**. O adaptador SMTP real existe no código e depende
@@ -64,6 +65,75 @@ consulte este README e os contratos de uso compartilhado e da Etapa E-mail.
 - [Documentação complementar](#documentação-complementar)
 
 ## Atualizações da versão atual
+
+### Central de envios — preparação independente do SMTP — 13/11/2026
+
+**Rastreamento de disabled e Configurações:** identificadas todas as atribuições ao
+destinatário e seus chamadores; no JAR antigo a condição ativa é `!state.envioReal`.
+Configurações agora explica os bloqueios de seus fieldsets e mantém recuperação
+consistente após falha de consulta. [Rastreamento, estados observados, testes e JAR atual](docs/disabled-destinatario-configuracoes.md).
+
+**Edição do destinatário:** comprovados o disabled por modo no JAR antigo da porta
+8080 e o bloqueio adicional durante Atualizar dados na v2. Edição agora independe
+de consultas/prévias pendentes, com permissão preservada. Teste de navegador com
+clique, Tab, digitação, apagar e Ctrl+V passou em desktop/celular, inclusive sob falha
+e recuperação. [Causas exatas, antes/depois e JAR de digitação validado](docs/destinatario-editavel.md).
+
+**Continuação — instância efetiva:** a porta 8080 ainda executava o JAR anterior à
+correção. A Central v2 agora identifica compilação/recursos, separa os requisitos Gmail
+documentais dos do motorista e inclui iniciador com três arquivos sintéticos em outra
+porta. **418 JUnit, 417 aprovados, 1 ignorado, zero falhas/erros.** Veja
+[JAR identificado, hashes, início isolado e propriedades externas exatas](docs/iniciar-central-corrigida-gmail.md).
+
+Corrigido o bloqueio de **Gerar prévia** pelo modo documental SIMULADO. A conferência
+persistida valida destinatário, vínculos e integridade dos arquivos sem chamar transporte.
+A confirmação real permanece separada, explícita e dependente da configuração documental,
+sessão/permissão e CSRF. Ausência de configuração e falha de consulta têm diagnósticos
+distintos, com recuperação e ações conforme o papel. Confirmação opcional ao motorista e
+conta administrativa Gmail continuam independentes.
+
+Validação: **413 testes JUnit, 412 aprovados, 1 ignorado, zero falhas/erros**, incluindo
+navegador protegido com transporte double; preparação no JAR, desktop/celular, temas e
+teclado verificados. Nenhum envio externo nem acesso ao banco operacional.
+Veja [causa reproduzida, contratos, comandos e capturas](docs/central-envios.md).
+
+### Revisão visual e de navegação — 13/11/2026
+
+Frontend servido pelo mesmo JAR revisado com tema claro padrão, tema escuro
+preservado, sidebar grafite, tipografia legível e componentes consistentes.
+Importação ZIP e XML/PDF têm rótulos próprios, conferência por etapas e seleção
+acessível. Navegação, estados vazios, tabelas e formulários foram reorganizados.
+Veja [implementação, testes atuais e capturas antes/depois](docs/revisao-visual-20261113.md).
+
+**Segunda revisão:** composição mais compacta, títulos sem repetição, seleção ZIP e
+Envios mais diretos, Saúde com superfícies neutras e rolagem centralizada.
+Veja [mudanças, testes e capturas comparáveis nos dois temas](docs/segunda-revisao-visual-20261113.md).
+
+**Apresentação e marca oficial:** landing escura responsiva, logo fornecida e arte
+local de caminhão/mapa, login alinhado e abertura vinculada à verificação real de
+versão/sessão. [Implementação, limites e capturas](docs/apresentacao-marca-carregamento.md).
+
+**Abertura animada e favicon oficial:** caminhão SVG com rodas e pista em movimento,
+inicialização real paralela e apresentação mínima de aproximadamente **10 segundos**,
+com opção de pular apenas a espera visual. Este requisito substitui a orientação
+anterior de ausência de tempo mínimo. Ícones oficiais PNG/ICO na landing, login e
+painel, inclusive em `/rota`. [Regras atuais, testes, vídeo e capturas](docs/abertura-animada-favicon.md).
+
+### Preparação compartilhada e Gmail — 11/11/2026
+
+Preservada a organização `front/` e `back/`. Conferidas a `main` remota e as
+evoluções locais V15. O teste administrativo agora exige nova conferência vinculada
+à tentativa anterior para repetir; a versão externa da credencial Gmail invalida
+prévias e verificações antigas. Diagnósticos Google distinguem expiração, renovação
+e reconexão, sem receber segredos no painel ou confundir Gmail com Microsoft.
+
+**Validação desta revisão:** 407 testes JUnit contabilizados, **406 aprovados**,
+zero falhas/erros e 1 ignorado; Python 2 aprovados. Playwright **1.58.2**: entrada
+8 grupos, uso compartilhado 12, Configurações/exportação 7 e uso diário 16, sem
+erros JavaScript. HTTPS operacional e contexto `/rota` aprovados. Não houve envio
+externo, acesso ao banco operacional ou implantação.
+
+Veja [diagnóstico, alterações, comandos e bloqueios externos](docs/preparacao-compartilhada-gmail-20261111.md).
 
 ### Revisão final para equipe e Gmail — 09/11/2026
 
@@ -357,7 +427,7 @@ gerenciamento de versões do Spring Boot definido em [`pom.xml`](pom.xml).
 | **fflate 0.8.3** | Preparação e leitura de ZIPs no navegador |
 | **WebJars** | Distribuição local das bibliotecas PDF/ZIP pelo Spring Boot |
 
-O frontend real está em `src/main/resources/static/` e é servido pelo mesmo JAR.
+O frontend real está em `front/` e é servido pelo mesmo JAR.
 Não exige instalar Node.js para utilizar o site. As bibliotecas de PDF e ZIP são
 servidas localmente; documentos não são enviados a CDN ou serviço externo de edição.
 
@@ -400,7 +470,7 @@ não substituem o processamento oficial em Java.
 ### Estrutura do repositório
 
 ```text
-src/main/java/br/com/rotabrasil/
+back/src/main/java/br/com/rotabrasil/
 ├── config/          # Perfis, verificações de banco/armazenamento e SMTP
 ├── controller/      # Endpoints REST
 ├── dto/             # Contratos de entrada e saída
@@ -412,18 +482,19 @@ src/main/java/br/com/rotabrasil/
 ├── seguranca/       # Operadores, sessões, permissões e auditoria
 └── service/         # Regras de negócio, arquivos, ZIP e serviços de e-mail
 
-src/main/resources/
+back/src/main/resources/
 ├── application*.properties
 ├── db/migration/    # Migrações SQL
-├── email/           # CT-e sintético para demonstração/testes
-└── static/          # Frontend real
+└── email/           # CT-e sintético para demonstração/testes
 
-src/test/            # Testes Java e fixtures sintéticas
+back/src/test/       # Testes Java e fixtures sintéticas
+back/pom.xml         # Build Spring Boot e dependências do backend
+front/               # Frontend real: HTML, CSS, JavaScript e SVG
 scripts/             # Testes de navegador e dependências dessas ferramentas
 python/              # Auxiliares opcionais e testes Python
 docs/                # Contratos, fluxos, manutenção e resultados históricos
 .github/workflows/   # Automação de verificações
-pom.xml              # Build e dependências
+pom.xml              # Agregador Maven: permite compilar pela raiz
 AGENTS.md            # Instruções de trabalho no projeto
 ```
 
@@ -480,7 +551,7 @@ Os bytes de XML/PDF ficam no armazenamento de arquivos, com metadados e vínculo
 
 ### Frontend: onde fica cada parte da interface
 
-Todos os arquivos abaixo ficam em `src/main/resources/static/`.
+Todos os arquivos abaixo ficam em `front/`.
 
 | Arquivo | Responsabilidade |
 | --- | --- |
@@ -552,6 +623,8 @@ Recursos de interface:
 - Módulos secundários carregam sob demanda e apresentam recuperação local.
 - Respeito a `prefers-reduced-motion`, navegação por teclado e foco visível.
 - Central de atalhos com **Ctrl+K / Cmd+K**.
+- Ajuda contextual pelo botão **?** junto ao título: fechada por padrão, com passos
+  curtos conforme a permissão da sessão. [Textos finais, testes e capturas](docs/ajuda-contextual.md).
 - Drag-and-drop, nome/tamanho do upload e feedback da operação.
 - Cards clicáveis e estados de carregamento, erro e ausência de resultados.
 - Filtros e seleções preservados entre telas; mudanças de dados invalidam as prévias necessárias.
@@ -630,7 +703,7 @@ ser escolhidas pelo usuário; o sistema não as deduz pelos nomes dos arquivos.
 
 O sistema pode criar ou reutilizar os registros conforme os dados e a identidade
 documental existentes. Para uma primeira demonstração em ambiente isolado, utilize
-`src/main/resources/email/cte-sintetico.xml`, que não possui valor fiscal.
+`back/src/main/resources/email/cte-sintetico.xml`, que não possui valor fiscal.
 
 ### 4. Adicionar um PDF a uma viagem existente
 
@@ -969,9 +1042,14 @@ compatibilidade dos favoritos, logout, expiração e teste HTTPS isolado com con
 Confira `java -version` e `mvn -version`. A aplicação usa a porta 8080 por padrão.
 Os comandos a seguir compilam fora do repositório e iniciam uma base nova isolada.
 Use o frontend **de dentro desse mesmo JAR**; não acrescente
-`spring.web.resources.static-locations=file:.../src/main/resources/static/` a um JAR
+`spring.web.resources.static-locations=file:.../front/` a um JAR
 anterior. Essa combinação reproduziu os dois erros 404. O painel agora verifica
 `GET /api/versao` antes de inicializar e identifica backend incompatível.
+
+Os comandos Maven abaixo são executados na **raiz do repositório**. O `pom.xml`
+da raiz compila o módulo `back`; também é possível usar `mvn -f back/pom.xml`.
+Sem diretório externo, o JAR fica em `back/target/rota-brasil-0.0.1-SNAPSHOT.jar`.
+Veja [a organização e a comunicação entre front e back](docs/front-back.md).
 
 ### Windows / PowerShell
 
@@ -1035,7 +1113,7 @@ por ser o servidor; não espere seu encerramento como evidência de prontidão.
 
 ### Usar, reiniciar e limpar o ambiente local
 
-- Para testar XML, use `src/main/resources/email/cte-sintetico.xml`, sem valor fiscal.
+- Para testar XML, use `back/src/main/resources/email/cte-sintetico.xml`, sem valor fiscal.
 - Para testar ZIP/PDF, as ferramentas de navegador geram pacotes sintéticos válidos
   em seus diretórios externos de saída.
 - `Ctrl+C` encerra a execução no terminal; `Ctrl+F5` atualiza os recursos no navegador.
@@ -1049,7 +1127,7 @@ por ser o servidor; não espere seu encerramento como evidência de prontidão.
 
 ## Configurações principais
 
-As configurações-base ficam em `src/main/resources/application.properties`, com
+As configurações-base ficam em `back/src/main/resources/application.properties`, com
 ajustes por perfil em `application-desenvolvimento.properties` e
 `application-operacao.properties`. Parâmetros de linha de comando e configuração
 externa do Spring Boot permitem definir os valores para cada ambiente.

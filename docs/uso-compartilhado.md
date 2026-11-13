@@ -1,5 +1,10 @@
 # Uso diário compartilhado
 
+**Aceite de 11/11/2026:** [continuação e comandos reproduzíveis](preparacao-compartilhada-gmail-20261111.md).
+Roteiro compartilhado atualizado para `operacao`, HTTPS descartável e cookies
+seguros: 12 grupos aprovados, incluindo CSRF, importação, autoria, mudança de papel
+na sessão aberta, desativação e reativação. Não é homologação da instalação empresarial.
+
 **Estado atual V15:** [revisão integrada e acompanhamento](revisao-equipe-v15.md).
 A conta [Gmail de teste](gmail-configuravel.md) exige ADMIN e não substitui o
 transporte documental ou a configuração Microsoft. As evidências V14 no final

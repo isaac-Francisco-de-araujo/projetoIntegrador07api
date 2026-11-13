@@ -46,7 +46,7 @@ async function nova(){
 }
 async function pronta(p){
   await expect(p.locator('#sessao-usuario')).not.toHaveText('Carregando sessão…',{timeout:30000});
-  await expect(p.locator('#abertura')).toBeHidden();
+   await expect(p.locator('#abertura')).toBeHidden({timeout:10000});
   await expect(p.locator('body')).not.toHaveClass(/is-loading/);
 }
 async function login(p,usuario){
@@ -62,22 +62,89 @@ async function api(p,rota,corpo,method='POST'){
   },{rota,corpo,method,base:new URL(url).pathname.replace(/\/$/,'')});
 }
 async function capturar(p,nome){
-  for(const [largura,altura] of [[1366,768],[390,844]]){
+   for(const [largura,altura] of [[1366,768],[1920,1080],[390,844]]){
     await p.setViewportSize({width:largura,height:altura});
     assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),nome+' sem overflow');
     await p.screenshot({path:path.join(out,nome+'-'+largura+'.png'),fullPage:true});
   }
   await p.setViewportSize({width:1366,height:768});
 }
+async function design(p){
+  await expect(p.locator('html')).toHaveAttribute('data-tema','claro');
+  await expect(p.locator('#resumo-pendencias')).toBeEmpty();
+  await expect(p.locator('#lista-ultimas-viagens')).toContainText('Importar primeiro ZIP');
+  async function nav(tela){
+    await p.evaluate(t=>{location.hash=t;},tela);
+    await expect(p.locator('main')).toHaveAttribute('data-pagina-atual',tela);
+    await p.waitForFunction(()=>scrollY===0);
+  }
+  await nav('importacao');
+  await expect(p.locator('#importar')).toHaveText('Selecione um XML ou PDF');
+  await expect(p.locator('#importar')).toBeDisabled();
+  const xml=fs.readFileSync(path.join(root,'back/src/main/resources/email/cte-sintetico.xml'));
+  await p.locator('#arquivo').setInputFiles({name:'cte-sintetico.xml',mimeType:'application/xml',buffer:xml});
+  await expect(p.locator('#arquivo-info')).toContainText('XML de CT-e');
+  await expect(p.locator('#importar')).toHaveText('Importar XML');
+  await p.locator('#importar').click();
+  await expect(p.locator('#resultado-importacao')).not.toHaveClass(/error/);
+  await expect(p.locator('#total-viagens')).toHaveText('1');
+  await p.locator('#remover-arquivo-selecao').click();
+  await expect(p.locator('#importar')).toBeDisabled();
+  await p.locator('#arquivo').setInputFiles({name:'conferencia.pdf',mimeType:'application/pdf',buffer:Buffer.from('%PDF-1.7\nSINTETICO')});
+  await expect(p.locator('#importar')).toHaveText('Conferir PDF');
+  await expect(p.locator('#arquivo-info')).toContainText('PDF');
+  await p.locator('#remover-arquivo-selecao').click();
+  await nav('viagens');await p.locator('#buscar-viagem').fill('66213');
+  await expect(p.locator('#lista-viagens')).toContainText('66213');
+  await p.locator('#lista-viagens').getByRole('button',{name:/Detalhes/}).click();
+  await expect(p.locator('#detalhes-cadastro')).toBeVisible();
+  await p.keyboard.press('Escape');await expect(p.locator('#detalhes-cadastro')).toBeHidden();
+  await expect(p.locator('#buscar-viagem')).toHaveValue('66213');
+  await p.evaluate(()=>scrollTo(0,100));
+  const posicaoLista=await p.evaluate(()=>scrollY);
+  await p.locator('#lista-viagens').getByRole('button',{name:'Ver documentos da viagem 66213',exact:true}).click();
+  await expect(p.locator('#documentos-conteudo')).toBeVisible();
+  await p.locator('#voltar-lista-viagens').click();
+  await expect(p.locator('#buscar-viagem')).toBeFocused();
+  await expect(p.locator('#buscar-viagem')).toHaveValue('66213');
+  await p.waitForFunction(y=>Math.abs(scrollY-Math.min(y,Math.max(0,document.documentElement.scrollHeight-innerHeight)))<=1,posicaoLista);
+  const telas=['inicio','pacotes','importacao','viagens','clientes','fila','busca','email','processamentos','configuracoes','administracao','saude'];
+  for(const tema of ['claro','escuro']){
+    await p.evaluate(t=>{localStorage.setItem('rotabrasil-tema',t);document.documentElement.dataset.tema=t;},tema);
+    for(const [width,height] of [[1366,768],[1920,1080],[390,844]]){
+      await p.setViewportSize({width,height});
+      for(const tela of telas){
+        await nav(tela);
+        await p.waitForLoadState('networkidle');
+        assert.ok(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${tema} ${tela} ${width} sem overflow`);
+        await p.screenshot({path:path.join(out,`design-${tema}-${tela}-${width}.png`),fullPage:true});
+        await p.evaluate(()=>scrollTo(0,document.documentElement.scrollHeight));
+      }
+    }
+  }
+  await p.setViewportSize({width:390,height:844});await nav('pacotes');
+  await p.locator('#menu-abrir').click();await expect(p.locator('#menu-abrir')).toHaveAttribute('aria-expanded','true');
+  await p.locator('#menu-lateral nav a').last().focus();await p.keyboard.press('Tab');
+  await expect(p.locator('#menu-lateral .brand')).toBeFocused();
+  await p.keyboard.press('Escape');await expect(p.locator('#menu-abrir')).toBeFocused();
+  await p.setViewportSize({width:1366,height:768});
+  await p.evaluate(()=>localStorage.setItem('rotabrasil-tema','escuro'));
+  await p.goto(url+'/painel');await pronta(p);await expect(p.locator('html')).toHaveAttribute('data-tema','escuro');
+  await p.locator('#alternar-tema').click();await expect(p.locator('html')).toHaveAttribute('data-tema','claro');
+  assert.equal((await p.request.get(url+'/painel-visual.css')).status(),200);
+  checks.push('Design: 12 abas × 3 resoluções × 2 temas em HTTPS; novas abas no topo, importação XML real sintética, rótulo PDF, filtros/detalhes, preferência persistida e foco do menu móvel');
+}
 async function verificar(contexto){
   await start(true,contexto);const p=await nova(),prefixo=contexto?'contexto-':'';
   const inicio=pedidos.length;await p.goto(url+'/');await p.waitForLoadState('networkidle');
-  await expect(p.getByRole('heading',{level:1})).toHaveText('Organize documentos de viagens e acompanhe sua operação.');
+   await expect(p.getByRole('heading',{level:1})).toHaveText('Seus documentos no caminho certo.');
+   assert.ok(await p.getByRole('link',{name:'Entrar no sistema',exact:true}).evaluate(e=>e.getBoundingClientRect().bottom<=innerHeight),'Entrar visível sem rolar no notebook');
   const recursos=pedidos.slice(inicio).map(r=>new URL(r.url).pathname);
-  assert.deepEqual(recursos.sort(),[contexto+'/',contexto+'/acesso.css',contexto+'/acesso-logo.svg',contexto+'/acesso.js'].sort());
+   const icones=[contexto+'/favicon.ico',contexto+'/assets/marca/favicon-16.png',contexto+'/assets/marca/favicon-32.png'];
+   assert.deepEqual(recursos.filter(r=>!icones.includes(r)).sort(),[contexto+'/',contexto+'/acesso.css',contexto+'/assets/marca/logo-rotabrasil.webp',contexto+'/assets/marca/landing-rota.webp',contexto+'/acesso.js'].sort());
   assert.ok(await p.locator('.marca img').evaluate(i=>i.complete&&i.naturalWidth>0));
   await capturar(p,prefixo+'apresentacao');
-  await p.keyboard.press('Tab');await expect(p.getByRole('link',{name:'Entrar',exact:true})).toBeFocused();
+   await p.keyboard.press('Tab');await expect(p.getByRole('link',{name:'Entrar no sistema',exact:true})).toBeFocused();
   await p.keyboard.press('Enter');await expect(p).toHaveURL(url+'/login');
   await expect(p.locator('[name=username]')).toBeFocused();
   await expect(p.locator('[name=_csrf]')).toHaveAttribute('value',/.+/);
@@ -95,19 +162,21 @@ async function verificar(contexto){
   for(const rota of ['/painel','/index.html','/painel-admin.js']){
     const r=await p.request.get(url+rota,{maxRedirects:0});assert.equal(r.status(),302);assert.ok(r.headers().location.endsWith(contexto+'/login'));
   }
-  checks.push(prefixo+'Apresentação só carrega 4 recursos públicos; teclado, celular, CSRF, erro genérico, painel/downloads protegidos e JSON 401');
+   checks.push(prefixo+'Apresentação só carrega os recursos públicos locais esperados e favicon; teclado, celular, CSRF, erro genérico, painel/downloads protegidos e JSON 401');
   await p.goto(url+'/login?continue=https://externo.invalid');await login(p,'admin-sintetico');await expect(p).toHaveURL(url+'/painel');
   await capturar(p,prefixo+'painel');
+  if(!contexto)await design(p);
   const cookies=await p.context().cookies();assert.ok(cookies.some(c=>c.name==='JSESSIONID'&&c.secure&&c.httpOnly&&c.sameSite==='Strict'));
   await p.goto(url+'/login');await expect(p).toHaveURL(url+'/painel');await pronta(p);
-  await p.goto(url+'/');await p.getByRole('link',{name:'Entrar',exact:true}).click();await expect(p).toHaveURL(url+'/painel');await pronta(p);
+   await p.goto(url+'/');await p.getByRole('link',{name:'Entrar no sistema',exact:true}).click();await expect(p).toHaveURL(url+'/painel');await pronta(p);
   await p.goto(url+'/index.html#documentos');await pronta(p);await expect(p.locator('main')).toHaveAttribute('data-pagina-atual','viagens');
   await p.goto(url+'/#operadores');await pronta(p);await expect(p).toHaveURL(url+'/painel#operadores');await expect(p.locator('main')).toHaveAttribute('data-pagina-atual','administracao');
   checks.push(prefixo+'Login válido e sessão existente levam ao painel sem loops/destino externo; index.html, favorito antigo e alias preservados');
   // Cadastro e alteração pelo frontend existente em perfil operacional, nunca por cadastro público.
   const novo=contexto?'contexto-operador':'novo-operador';
   await p.locator('#adicionar-operador').click();await p.locator('#novo-usuario').fill(novo);await p.locator('#nova-senha').fill(senha);await p.locator('#novo-papel').selectOption('CONSULTA');
-  await p.locator('#form-usuario button[type=submit]').click();await expect(p.locator('#lista-usuarios')).toContainText(novo);
+  const cadastro=p.waitForResponse(r=>r.url()===url+'/api/admin/usuarios'&&r.request().method()==='POST',{timeout:30000});
+  await p.locator('#form-usuario button[type=submit]').click();assert.equal((await cadastro).status(),200,'Cadastro administrativo deve ser aceito pelo backend');await expect(p.locator('#lista-usuarios')).toContainText(novo,{timeout:30000});
   const row=p.locator('.operator-row').filter({hasText:novo});await row.getByRole('button',{name:'Gerenciar',exact:true}).click();
   await p.locator('#editar-operador select').selectOption('OPERADOR');await p.getByRole('button',{name:'Salvar permissões',exact:true}).click();await expect(row).toContainText('OPERADOR');
   const usuarios=await(await p.request.get(url+'/api/admin/usuarios')).json();assert.ok(!JSON.stringify(usuarios).includes('$2'));

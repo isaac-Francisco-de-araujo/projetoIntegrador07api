@@ -1,5 +1,8 @@
 # Acesso: apresentação → login → painel
 
+**Atualização de 13/11/2026:** a [apresentação com marca oficial e abertura real](apresentacao-marca-carregamento.md)
+documenta a nova composição, assets fornecidos e testes atuais de carregamento.
+
 ## Rotas e comportamento
 
 | Rota | Uso |
@@ -15,7 +18,8 @@ Antes: **login → carregamento → painel**. Agora: **apresentação → Entrar
 carregamento essencial → painel**. Com sessão válida, Entrar passa por `/login` e
 chega ao painel sem pedir a senha novamente. Abrir `/` continua mostrando a apresentação.
 
-A apresentação carrega apenas seu HTML, `acesso.css`, `acesso-logo.svg` e `acesso.js`.
+A apresentação carrega apenas seu HTML, `acesso.css`, `acesso.js` e os dois assets
+locais `assets/marca/logo-rotabrasil.webp` e `assets/marca/landing-rota.webp`.
 Não consulta APIs, sessão, indicadores, documentos ou módulos operacionais. O script
 somente mantém os favoritos antigos e o fragmento local ao atravessar o formulário.
 Sem JavaScript, a apresentação e o formulário funcionam; favoritos `/#aba` exigem
@@ -48,8 +52,10 @@ Não existe parâmetro de destino externo após login; o destino do servidor é 
   instantânea entre navegadores.
 
 `painel-abertura.js` continua sendo carregamento interno: contrato e sessão antes de
-liberar ações, sem espera mínima. Telas secundárias continuam sob demanda e suas
-falhas são isoladas. A apresentação não inicializa esses módulos.
+liberar ações. O requisito atual acrescenta uma apresentação mínima de aproximadamente
+10 segundos, com opção de pular somente a espera visual. Telas secundárias continuam
+sob demanda e suas falhas são isoladas. A landing não inicializa esses módulos.
+Veja [a abertura animada, favicon oficial e validação atual](abertura-animada-favicon.md).
 
 ## Experimentar com segurança
 

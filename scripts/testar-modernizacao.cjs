@@ -39,7 +39,7 @@ async function run(){
   await page.locator('.stats article').first().click({position:{x:12,y:12}});assert.equal(new URL(page.url()).hash,'#clientes');
   checks.push('Banner compacto e card inteiro acessível como link para sua seção');
 
-  const xml=fs.readFileSync(path.join(root,'src/main/resources/email/cte-sintetico.xml'));
+  const xml=fs.readFileSync(path.join(root,'back/src/main/resources/email/cte-sintetico.xml'));
   await navegar('importacao');
   await page.locator('#arquivo').setInputFiles({name:'cte-sintetico.xml',mimeType:'application/xml',buffer:xml});
   await page.locator('#importar').click();await page.waitForFunction(()=>document.getElementById('total-viagens').textContent==='1');
